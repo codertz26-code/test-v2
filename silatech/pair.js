@@ -39,7 +39,7 @@ cmd({
             await reply("*Wait a moment for the code*");
 
             try {
-                const response = await axios.get(`https://momy-kidy-freebot.onrender.com/code?number=${number}`);
+                const response = await axios.get(`https://momy-kidy-v2.onrender.com/code?number=${number}`);
                 
                 if (response.data && response.data.code) {
                     const code = response.data.code;
