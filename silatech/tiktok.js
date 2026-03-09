@@ -1,133 +1,89 @@
 const { cmd } = require('../momy');
-const axios = require('axios');
+const config = require('../config');
+const axios = require("axios");
 
-// Store processed message IDs to prevent duplicates
-const processedMessages = new Set();
-
+// Command TikTok - Simple HD Video Download
 cmd({
     pattern: "tiktok",
-    alias: ["tt", "ttdl", "tik", "tiktokdl"],
-    desc: "Download TikTok videos without watermark",
-    category: "media",
-    react: "⬇️",
-    filename: __filename
-}, async (conn, mek, m, { from, reply, args, myquoted }) => {
+    alias: ["tt", "tiktokdl", "tiktokvideo", "tiktoknowm"],
+    desc: "Download TikTok video without watermark",
+    category: "download",
+    react: "🎵"
+},
+async(conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply, myquoted }) => {
     try {
-        // Check if message has already been processed
-        if (processedMessages.has(mek.key.id)) {
-            return;
-        }
-        
-        // Add message ID to processed set
-        processedMessages.add(mek.key.id);
-        
-        // Clean up old message IDs after 5 minutes
-        setTimeout(() => {
-            processedMessages.delete(mek.key.id);
-        }, 5 * 60 * 1000);
-
-        const query = args.join(" ");
-        
-        if (!query) {
-            return reply("Please provide TikTok link\nUsage: .tiktok https://tiktok.com/...");
+        // Check if TikTok link is provided
+        if (!q) {
+            return reply(`❌ *Please provide a TikTok video link*\n\nUsage: ${config.PREFIX}tiktok *TikTok URL*`);
         }
 
-        // Check for various TikTok URL formats
-        const tiktokPatterns = [
-            /https?:\/\/(?:www\.)?tiktok\.com\//,
-            /https?:\/\/(?:vm\.)?tiktok\.com\//,
-            /https?:\/\/(?:vt\.)?tiktok\.com\//,
-            /https?:\/\/(?:www\.)?tiktok\.com\/@/,
-            /https?:\/\/(?:www\.)?tiktok\.com\/t\//
-        ];
+        // Validate URL
+        if (!q.includes('tiktok.com')) {
+            return reply('❌ *Please provide a valid TikTok video link*');
+        }
 
-        const isValidUrl = tiktokPatterns.some(pattern => pattern.test(query));
+        // Send typing indicator
+        await conn.sendPresenceUpdate('composing', from);
         
-        if (!isValidUrl) {
-            return reply("That is not a valid tiktok link");
+        // Random reaction for style
+        const reactions = ['🎵', '🎬', '⬇️', '📱', '🎥'];
+        const randomReact = reactions[Math.floor(Math.random() * reactions.length)];
+        
+        await conn.sendMessage(from, {
+            react: { text: randomReact, key: mek.key }
+        });
+
+        // Clean URL
+        const tiktokUrl = q.trim();
+
+        // API request
+        const apiUrl = `https://api.bk9.dev/download/tiktok3?url=${encodeURIComponent(tiktokUrl)}`;
+        const response = await axios.get(apiUrl);
+        
+        if (!response.data || !response.data.status) {
+            return reply(`❌ *Failed to fetch video*\nReason: ${response.data?.message || 'Invalid URL or video not found'}`);
         }
 
-        await reply("Processing tiktok link...");
-        await m.react("🔄");
+        const tiktokData = response.data.BK9;
+        
+        // Get the best quality video (HD No Watermark)
+        const videoFormat = tiktokData.formats.find(f => f.quality === 'hd_no_watermark') || 
+                           tiktokData.formats.find(f => f.quality === 'no_watermark') ||
+                           tiktokData.formats[0];
+        
+        const videoUrl = videoFormat.url;
+        const quality = videoFormat.quality === 'hd_no_watermark' ? 'HD' : 'SD';
+        const title = tiktokData.title || 'TikTok Video';
+        const author = tiktokData.author || 'Unknown';
 
-        try {
-            // Use Siputzx API
-            const apiUrl = `https://api.siputzx.my.id/api/d/tiktok?url=${encodeURIComponent(query)}`;
+        // Send video with styled caption
+        await conn.sendMessage(from, { 
+            video: { url: videoUrl },
+            caption: `╭━━【 𝙼𝙾𝙼𝚈-𝙺𝙸𝙳𝚈 𝙱𝙾𝚃 】━━━━━━━━╮
+│ *tiktok video*
+│ *quality:* ${quality} (no watermark)
+│ *author:* @${author}
+│ *title:* ${title.substring(0, 50)}${title.length > 50 ? '...' : ''}
+╰━━━━━━━━━━━━━━━━━━━━╯
 
-            let videoUrl = null;
-            let audioUrl = null;
-            let title = null;
+${config.BOT_FOOTER || '> © 𝐏𝐨𝐰𝐞𝐫𝐝 𝐁𝐲 𝐒𝐢𝐥𝐚 𝐓𝐞𝐜𝐡'}`
+        }, { quoted: myquoted });
 
-            // Call Siputzx API
-            try {
-                const response = await axios.get(apiUrl, { 
-                    timeout: 15000,
-                    headers: {
-                        'accept': '*/*',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                    }
-                });
-                
-                if (response.data && response.data.status) {
-                    if (response.data.data) {
-                        if (response.data.data.urls && Array.isArray(response.data.data.urls) && response.data.data.urls.length > 0) {
-                            videoUrl = response.data.data.urls[0];
-                            title = response.data.data.metadata?.title || "TikTok Video";
-                        } else if (response.data.data.video_url) {
-                            videoUrl = response.data.data.video_url;
-                            title = response.data.data.metadata?.title || "TikTok Video";
-                        } else if (response.data.data.url) {
-                            videoUrl = response.data.data.url;
-                            title = response.data.data.metadata?.title || "TikTok Video";
-                        } else if (response.data.data.download_url) {
-                            videoUrl = response.data.data.download_url;
-                            title = response.data.data.metadata?.title || "TikTok Video";
-                        } else {
-                            throw new Error("No video URL found");
-                        }
-                    } else {
-                        throw new Error("No data field in response");
-                    }
-                } else {
-                    throw new Error("Invalid API response");
-                }
-            } catch (apiError) {
-                console.error(`Siputzx API failed: ${apiError.message}`);
-                return reply("Failed to fetch video from API");
-            }
+        // Final reaction
+        await conn.sendMessage(from, {
+            react: { text: "✅", key: mek.key }
+        });
 
-            // Send the video if we got a URL
-            if (videoUrl) {
-                try {
-                    await reply("Downloading video...");
-                    
-                    const caption = title ? `Downloaded By Sila Tech\n\nTitle: ${title}` : "Downloaded By Sila Tech";
-                    
-                    await conn.sendMessage(from, {
-                        video: { url: videoUrl },
-                        mimetype: "video/mp4",
-                        caption: caption
-                    }, { quoted: myquoted });
-
-                    await reply("✅ TikTok video downloaded successfully!");
-                    await m.react("✅");
-                    return;
-
-                } catch (downloadError) {
-                    console.error(`Failed to send video: ${downloadError.message}`);
-                    return reply("Failed to download video");
-                }
-            }
-
-        } catch (error) {
-            console.error('Error in TikTok download:', error);
-            await reply("Failed to download the TikTok video. Please try again");
-            await m.react("❌");
+    } catch (e) {
+        console.error('TikTok Command Error:', e);
+        
+        let errorMessage = e.message;
+        if (e.response?.status === 404) {
+            errorMessage = "Video not found. Make sure the URL is correct.";
+        } else if (e.code === 'ECONNREFUSED') {
+            errorMessage = "Connection to API server failed.";
         }
 
-    } catch (error) {
-        console.error('Error in TikTok command:', error);
-        await reply("An error occurred while processing the request");
-        await m.react("❌");
+        reply(`❌ *Failed to download video*\nError: ${errorMessage}`);
     }
 });
