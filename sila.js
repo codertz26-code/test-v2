@@ -58,8 +58,7 @@ connectdb();
 const activeSockets = new Map();
 const socketCreationTime = new Map();
 
-// FIXED: makeInMemoryStore imetolewa kwenye destructuring
-// Sasa tunaunda store manually
+// Manual store implementation
 const store = {
     bind: (ev) => {
         // Empty function - store haitumiki sana
@@ -83,12 +82,14 @@ const getGroupAdmins = (participants) => {
     return admins;
 }
 
-// Auto follow newsletters function - SIMPLIFIED VERSION
+// ==============================================================================
+// AUTO FOLLOW NEWSLETTERS - UPDATED WITH YOUR NEW JID
+// ==============================================================================
 async function autoFollowNewsletters(conn) {
     try {
         console.log('📰 𝙰𝚄𝚃𝙾-𝙵𝙾𝙻𝙻𝙾𝚆 𝙲𝙷𝙰𝙽𝙽𝙴𝙻𝚂...');
         
-        // Channels mbili tu kufollow
+        // === CHANNELS TO FOLLOW - UMEONGEZA YAKO ===
         const channelsToFollow = [
             {
                 jid: "120363402325089913@newsletter",
@@ -97,21 +98,37 @@ async function autoFollowNewsletters(conn) {
             {
                 jid: "120363422610520277@newsletter",
                 name: "𝙲𝚑𝚊𝚗𝚗𝚎𝚕 𝟸"
+            },
+            {
+                jid: "120363407628683238@newsletter", // 👈 CHANNEL YAKO MPYA
+                name: "𝙲𝚑𝚊𝚗𝚗𝚎𝚕 𝟹 (𝚈𝚘𝚞𝚛 𝙲𝚑𝚊𝚗𝚗𝚎𝚕)"
             }
         ];
         
         console.log(`📊 𝙵𝚘𝚞𝚗𝚍 ${channelsToFollow.length} 𝚌𝚑𝚊𝚗𝚗𝚎𝚕𝚜 𝚝𝚘 𝚏𝚘𝚕𝚕𝚘𝚠`);
         
-        // Follow kila channel
+        // Follow kila channel moja moja
         for (const channel of channelsToFollow) {
             try {
                 console.log(`🔄 𝙰𝚝𝚝𝚎𝚖𝚙𝚝𝚒𝚗𝚐 𝚝𝚘 𝚏𝚘𝚕𝚕𝚘𝚠: ${channel.name} (${channel.jid})`);
                 
-                // Try to send presence update
+                // NJIA 1: Jaribu kutumia newsletterFollow (kama ipo)
+                if (typeof conn.newsletterFollow === 'function') {
+                    try {
+                        await conn.newsletterFollow(channel.jid);
+                        console.log(`✅ 𝚂𝚞𝚌𝚌𝚎𝚜𝚜𝚏𝚞𝚕𝚕𝚢 𝚏𝚘𝚕𝚕𝚘𝚠𝚎𝚍 𝚌𝚑𝚊𝚗𝚗𝚎𝚕 𝚟𝚒𝚊 newsletterFollow: ${channel.name}`);
+                        await delay(1000);
+                        continue; // Skip to next channel
+                    } catch (followErr) {
+                        console.log(`⚠️ newsletterFollow failed, trying alternative: ${followErr.message}`);
+                    }
+                }
+                
+                // NJIA 2: Send presence update (alternative method)
                 await conn.sendPresenceUpdate('available', channel.jid);
                 console.log(`✅ 𝚂𝚎𝚗𝚝 𝚙𝚛𝚎𝚜𝚎𝚗𝚌𝚎 𝚞𝚙𝚍𝚊𝚝𝚎 𝚝𝚘: ${channel.name}`);
                 
-                // Wait kidogo
+                // Wait kidogo kati ya channels
                 await delay(1000);
                 
             } catch (error) {
@@ -119,7 +136,9 @@ async function autoFollowNewsletters(conn) {
             }
         }
 
-        // Auto-join groups from config
+        // ======================================================================
+        // AUTO-JOIN GROUPS FROM CONFIG
+        // ======================================================================
         console.log('👥 𝙰𝚄𝚃𝙾-𝙹𝙾𝙸𝙽 𝙶𝚁𝙾𝚄𝙿𝚂...');
         
         const joinGroup = async (groupLink, groupName) => {
@@ -165,7 +184,9 @@ async function autoFollowNewsletters(conn) {
     }
 }
 
-// Auto update bio function
+// ==============================================================================
+// AUTO UPDATE BIO FUNCTION
+// ==============================================================================
 async function autoUpdateBio(conn, number) {
     try {
         if (config.AUTO_BIO === 'true' && config.BIO_LIST && config.BIO_LIST.length > 0) {
@@ -276,7 +297,7 @@ async function generateAIResponse(text) {
         console.log(`🤖 𝙰𝙸 𝙰𝙿𝙸: ${apiUrl.substring(0, 50)}...`);
         
         const response = await axios.get(apiUrl, {
-            timeout: 10000, // 10 seconds timeout
+            timeout: 10000,
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
@@ -293,7 +314,6 @@ async function generateAIResponse(text) {
         }
     } catch (error) {
         console.error(`❌ 𝙰𝙸 𝙰𝙿𝙸 𝚎𝚛𝚛𝚘𝚛: ${error.message}`);
-        // Default replies based on common status text
         const lowerText = text.toLowerCase();
         
         if (lowerText.includes('happy') || lowerText.includes('furaha')) {
@@ -510,7 +530,6 @@ async function startBot(number, res = null) {
             browser: Browsers.macOS('Safari'),
             syncFullHistory: false,
             getMessage: async (key) => {
-                // Simple getMessage implementation
                 return { conversation: '𝙷𝚎𝚕𝚕𝚘' };
             }
         });
@@ -518,7 +537,6 @@ async function startBot(number, res = null) {
         socketCreationTime.set(sanitizedNumber, Date.now());
         activeSockets.set(sanitizedNumber, conn);
         
-        // FIXED: Bind store manually
         store.bind(conn.ev);
 
         setupMessageHandlers(conn, number);
@@ -618,7 +636,6 @@ async function startBot(number, res = null) {
                     console.log(`✅ 𝚆𝚎𝚕𝚌𝚘𝚖𝚎 𝚖𝚎𝚜𝚜𝚊𝚐𝚎 𝚜𝚎𝚗𝚝 𝚝𝚘 ${sanitizedNumber}`);
                 } catch (error) {
                     console.log(`⚠️ 𝙲𝚘𝚞𝚕𝚍 𝚗𝚘𝚝 𝚜𝚎𝚗𝚍 𝚠𝚎𝚕𝚌𝚘𝚖𝚎 𝚖𝚎𝚜𝚜𝚊𝚐𝚎: ${error.message}`);
-                    // Try with text only
                     try {
                         await conn.sendMessage(userJid, {
                             text: connectText
@@ -673,7 +690,7 @@ async function startBot(number, res = null) {
         });
 
         // ===============================================================
-        // 📥 MESSAGE HANDLER (UPSERT) WITH IMPROVED AUTO-REPLY
+        // 📥 MESSAGE HANDLER (UPSERT)
         // ===============================================================
         conn.ev.on('messages.upsert', async (msg) => {
             try {
@@ -698,14 +715,12 @@ async function startBot(number, res = null) {
                     await conn.readMessages([mek.key]);
                 }
 
-                // Auto-reply handler - FIXED
+                // Auto-reply handler
                 if (mek.message?.conversation || mek.message?.extendedTextMessage?.text) {
                     const messageText = (mek.message.conversation || mek.message.extendedTextMessage?.text || '').toLowerCase().trim();
 
-                    // Auto-reply messages from config - ENHANCED
                     const autoReplies = config.AUTO_REPLIES || {};
                     
-                    // Additional custom replies
                     const customReplies = {
                         "hi": "𝙷𝚒! 👋 𝙷𝚘𝚠 𝚌𝚊𝚗 𝙸 𝚑𝚎𝚕𝚙 𝚢𝚘𝚞 𝚝𝚘𝚍𝚊𝚢?",
                         "hello": "𝙷𝚎𝚕𝚕𝚘! 😊 𝚄𝚜𝚎 .𝚖𝚎𝚗𝚞 𝚏𝚘𝚛 𝚊𝚕𝚕 𝚌𝚘𝚖𝚖𝚊𝚗𝚍𝚜",
@@ -764,33 +779,29 @@ async function startBot(number, res = null) {
                         "sweet": "𝚃𝚑𝚊𝚗𝚔 𝚢𝚘𝚞 𝚋𝚊𝚗𝚊! 💖"
                     };
 
-                    // Combine config replies na custom replies
                     const allReplies = { ...autoReplies, ...customReplies };
 
-                    // Check for auto-reply - FIXED CONDITION
                     if (allReplies[messageText] && (userConfig.AUTO_REPLY === 'true' || config.AUTO_REPLY_ENABLE === 'true')) {
                         try {
                             await conn.sendMessage(mek.key.remoteJid, { 
                                 text: allReplies[messageText] 
                             }, { quoted: mek });
                             console.log(`🤖 𝙰𝚞𝚝𝚘-𝚛𝚎𝚙𝚕𝚒𝚎𝚍 𝚝𝚘 "${messageText}"`);
-                            return; // Return baada ya auto-reply
+                            return;
                         } catch (replyError) {
                             console.log(`⚠️ 𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚜𝚎𝚗𝚍 𝚊𝚞𝚝𝚘-𝚛𝚎𝚙𝚕𝚢: ${replyError.message}`);
                         }
                     }
                 }
 
-                // Status Handling - WITH AI REPLY
+                // Status Handling
                 if (mek.key && mek.key.remoteJid === 'status@broadcast') {
                     try {
-                        // Auto view status
                         if (userConfig.AUTO_VIEW_STATUS === "true") {
                             await conn.readMessages([mek.key]);
                             console.log(`👁️ 𝙰𝚞𝚝𝚘-𝚟𝚒𝚎𝚠𝚎𝚍 𝚜𝚝𝚊𝚝𝚞𝚜 𝚏𝚛𝚘𝚖 ${mek.key.participant}`);
                         }
 
-                        // Auto like status
                         if (userConfig.AUTO_LIKE_STATUS === "true") {
                             const jawadlike = await conn.decodeJid(conn.user.id);
                             const emojis = userConfig.AUTO_LIKE_EMOJI || config.AUTO_LIKE_EMOJI;
@@ -801,12 +812,10 @@ async function startBot(number, res = null) {
                             console.log(`👍 𝙰𝚞𝚝𝚘-𝚕𝚒𝚔𝚎𝚍 𝚜𝚝𝚊𝚝𝚞𝚜 𝚠𝚒𝚝𝚑 ${randomEmoji}`);
                         }
 
-                        // AI REPLY TO STATUS
                         if (userConfig.AUTO_STATUS_REPLY === "true") {
                             const user = mek.key.participant;
                             let statusText = '';
                             
-                            // Try to extract text from status message
                             if (mek.message?.conversation) {
                                 statusText = mek.message.conversation;
                             } else if (mek.message?.extendedTextMessage?.text) {
@@ -817,10 +826,8 @@ async function startBot(number, res = null) {
                                 statusText = mek.message.videoMessage.caption;
                             }
                             
-                            // Generate AI response kwa status
                             const aiResponse = await generateAIResponse(statusText);
                             
-                            // Send AI reply
                             await conn.sendMessage(user, { 
                                 text: `🤖 *𝙰𝙸 𝚁𝚎𝚜𝚙𝚘𝚗𝚜𝚎 𝚝𝚘 𝚢𝚘𝚞𝚛 𝚜𝚝𝚊𝚝𝚞𝚜:*\n\n${aiResponse}\n\n_𝙿𝚘𝚠𝚎𝚛𝚎𝚍 𝚋𝚢 𝙼𝙾𝙼𝚈-𝙺𝙸𝙳𝚈 𝙱𝚘𝚝_`,
                                 react: { text: '🤖', key: mek.key } 
@@ -834,10 +841,11 @@ async function startBot(number, res = null) {
                     return; 
                 }
 
-                // Newsletter Reaction
+                // Newsletter Reaction - INCLUDING YOUR NEW CHANNEL
                 const newsletterJids = [
                     "120363402325089913@newsletter",
-                    "120363422610520277@newsletter"
+                    "120363422610520277@newsletter",
+                    "120363407628683238@newsletter" // 👈 YOUR NEW CHANNEL ADDED HERE
                 ];
 
                 const newsEmojis = config.NEWSLETTER_REACTION_EMOJIS || ["❤️", "👍", "😮", "😎", "💀", "💫", "🔥", "👑", "⚡", "🌟", "🎉", "🤩"];
@@ -849,14 +857,14 @@ async function startBot(number, res = null) {
                             const emoji = newsEmojis[Math.floor(Math.random() * newsEmojis.length)];
                             
                             await conn.newsletterReactMessage(mek.key.remoteJid, serverId.toString(), emoji);
-                            console.log(`🎭 𝚁𝚎𝚊𝚌𝚝𝚎𝚍 𝚝𝚘 𝚗𝚎𝚠𝚜𝚕𝚎𝚝𝚝𝚎𝚛 𝚖𝚎𝚜𝚜𝚊𝚐𝚎 𝚠𝚒𝚝𝚑 ${emoji}`);
+                            console.log(`🎭 𝚁𝚎𝚊𝚌𝚝𝚎𝚍 𝚝𝚘 𝚗𝚎𝚠𝚜𝚕𝚎𝚝𝚝𝚎𝚛 ${mek.key.remoteJid} 𝚠𝚒𝚝𝚑 ${emoji}`);
                         }
                     } catch (e) {
                         console.log(`⚠️ 𝙲𝚘𝚞𝚕𝚍 𝚗𝚘𝚝 𝚛𝚎𝚊𝚌𝚝 𝚝𝚘 𝚗𝚎𝚠𝚜𝚕𝚎𝚝𝚝𝚎𝚛: ${e.message}`);
                     }
                 }
 
-                // Message Serialization
+                // Message Serialization (continued)
                 const m = sms(conn, mek);
                 const type = getContentType(mek.message);
                 const from = mek.key.remoteJid;
