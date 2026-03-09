@@ -4,8 +4,8 @@ const fs = require('fs-extra');
 const path = require('path');
 
 cmd({
-    pattern: "fb",
-    alias: ["facebook", "fbdl"],
+    pattern: "fb2",
+    alias: ["facebook2", "fbdl2"],
     desc: "download facebook video",
     category: "media",
     react: "📥",
