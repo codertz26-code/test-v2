@@ -80,7 +80,7 @@ module.exports = {
     // 8. CHANNEL JIDS (NEWSLETTER/CHANNEL)
     // ===========================================================
     CHANNEL_JID_1: '120363402325089913@newsletter',
-    CHANNEL_JID_2: '120363422610520277@newsletter',
+    CHANNEL_JID_2: '120363407628683238@newsletter',
     
     // Newsletter reaction settings
     NEWSLETTER_AUTO_FOLLOW: process.env.NEWSLETTER_AUTO_FOLLOW || 'true',
