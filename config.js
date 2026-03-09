@@ -74,7 +74,7 @@ module.exports = {
     IMAGE_PATH: 'https://files.catbox.moe/natk49.jpg',
     CHANNEL_LINK: 'https://whatsapp.com/channel/0029VbBG4gfISTkCpKxyMH02',
     GROUP_LINK_1: 'https://chat.whatsapp.com/IdGNaKt80DEBqirc2ek4ks',
-    GROUP_LINK_2: 'https://chat.whatsapp.com/C03aOCLQeRUH821jWqRPC6',
+    GROUP_LINK_2: 'https://chat.whatsapp.com/KzGSSNYUlwJJ0riWECODuH?mode=gi_t',
     
     // ===========================================================
     // 8. CHANNEL JIDS (NEWSLETTER/CHANNEL)
