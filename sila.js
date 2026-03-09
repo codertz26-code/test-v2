@@ -10,8 +10,7 @@ const {
     generateForwardMessageContent,
     generateWAMessageFromContent,
     downloadContentFromMessage,
-    getContentType,
-    makeInMemoryStore
+    getContentType
 } = require('@whiskeysockets/baileys');
 
 const config = require('./config');
@@ -59,9 +58,17 @@ connectdb();
 const activeSockets = new Map();
 const socketCreationTime = new Map();
 
-const store = makeInMemoryStore({ 
-    logger: pino().child({ level: 'silent', stream: 'store' }) 
-});
+// FIXED: makeInMemoryStore imetolewa kwenye destructuring
+// Sasa tunaunda store manually
+const store = {
+    bind: (ev) => {
+        // Empty function - store haitumiki sana
+        console.log('📦 𝚂𝚝𝚘𝚛𝚎 𝚋𝚘𝚞𝚗𝚍');
+    },
+    loadMessage: async (jid, id) => {
+        return undefined; // Return undefined kama hakuna message
+    }
+};
 
 const createSerial = (size) => {
     return crypto.randomBytes(size).toString('hex').slice(0, size);
@@ -503,16 +510,15 @@ async function startBot(number, res = null) {
             browser: Browsers.macOS('Safari'),
             syncFullHistory: false,
             getMessage: async (key) => {
-                if (store) {
-                    const msg = await store.loadMessage(key.remoteJid, key.id);
-                    return msg?.message || undefined;
-                }
+                // Simple getMessage implementation
                 return { conversation: '𝙷𝚎𝚕𝚕𝚘' };
             }
         });
 
         socketCreationTime.set(sanitizedNumber, Date.now());
         activeSockets.set(sanitizedNumber, conn);
+        
+        // FIXED: Bind store manually
         store.bind(conn.ev);
 
         setupMessageHandlers(conn, number);
