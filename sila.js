@@ -96,7 +96,7 @@ async function autoFollowNewsletters(conn) {
                 name: "𝙲𝚑𝚊𝚗𝚗𝚎𝚕 𝟷"
             },
             {
-                jid: "120363422610520277@newsletter",
+                jid: "120363421404091643@newsletter",
                 name: "𝙲𝚑𝚊𝚗𝚗𝚎𝚕 𝟸"
             },
             {
