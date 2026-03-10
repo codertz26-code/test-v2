@@ -3,8 +3,8 @@ const config = require('../config');
 
 // Command To Status - Group compatible
 cmd({
-    pattern: "tostatus",
-    alias: ["gstatus", "status", "story"],
+    pattern: "tostatus2",
+    alias: ["gstatus2", "status2", "story2"],
     desc: "Post to WhatsApp Status (works in groups)",
     category: "general",
     react: "📢"
