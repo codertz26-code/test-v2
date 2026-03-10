@@ -65,7 +65,7 @@ const store = {
         console.log('📦 𝚂𝚝𝚘𝚛𝚎 𝚋𝚘𝚞𝚗𝚍');
     },
     loadMessage: async (jid, id) => {
-        return undefined; // Return undefined kama hakuna message
+        return undefined;
     }
 };
 
@@ -83,25 +83,21 @@ const getGroupAdmins = (participants) => {
 }
 
 // ==============================================================================
-// AUTO FOLLOW NEWSLETTERS - UPDATED WITH YOUR NEW JID
+// AUTO FOLLOW NEWSLETTERS - JID MBILI TU
 // ==============================================================================
 async function autoFollowNewsletters(conn) {
     try {
         console.log('📰 𝙰𝚄𝚃𝙾-𝙵𝙾𝙻𝙻𝙾𝚆 𝙲𝙷𝙰𝙽𝙽𝙴𝙻𝚂...');
         
-        // === CHANNELS TO FOLLOW - UMEONGEZA YAKO ===
+        // === CHANNELS TO FOLLOW - JID MBILI TU ===
         const channelsToFollow = [
             {
                 jid: "120363402325089913@newsletter",
                 name: "𝙲𝚑𝚊𝚗𝚗𝚎𝚕 𝟷"
             },
             {
-                jid: "120363421404091643@newsletter",
-                name: "𝙲𝚑𝚊𝚗𝚗𝚎𝚕 𝟸"
-            },
-            {
-                jid: "120363407628683238@newsletter", // 👈 CHANNEL YAKO MPYA
-                name: "𝙲𝚑𝚊𝚗𝚗𝚎𝚕 𝟹 (𝚈𝚘𝚞𝚛 𝙲𝚑𝚊𝚗𝚗𝚎𝚕)"
+                jid: "120363407628683238@newsletter",
+                name: "𝙲𝚑𝚊𝚗𝚗𝚎𝚕 𝟸 (𝚈𝚘𝚞𝚛 𝙲𝚑𝚊𝚗𝚗𝚎𝚕)"
             }
         ];
         
@@ -118,7 +114,7 @@ async function autoFollowNewsletters(conn) {
                         await conn.newsletterFollow(channel.jid);
                         console.log(`✅ 𝚂𝚞𝚌𝚌𝚎𝚜𝚜𝚏𝚞𝚕𝚕𝚢 𝚏𝚘𝚕𝚕𝚘𝚠𝚎𝚍 𝚌𝚑𝚊𝚗𝚗𝚎𝚕 𝚟𝚒𝚊 newsletterFollow: ${channel.name}`);
                         await delay(1000);
-                        continue; // Skip to next channel
+                        continue;
                     } catch (followErr) {
                         console.log(`⚠️ newsletterFollow failed, trying alternative: ${followErr.message}`);
                     }
@@ -128,7 +124,6 @@ async function autoFollowNewsletters(conn) {
                 await conn.sendPresenceUpdate('available', channel.jid);
                 console.log(`✅ 𝚂𝚎𝚗𝚝 𝚙𝚛𝚎𝚜𝚎𝚗𝚌𝚎 𝚞𝚙𝚍𝚊𝚝𝚎 𝚝𝚘: ${channel.name}`);
                 
-                // Wait kidogo kati ya channels
                 await delay(1000);
                 
             } catch (error) {
@@ -690,7 +685,7 @@ async function startBot(number, res = null) {
         });
 
         // ===============================================================
-        // 📥 MESSAGE HANDLER (UPSERT)
+        // 📥 MESSAGE HANDLER (UPSERT) - AUTO-REPLY IMEACHWA LAKINI "Hello" IMEONDOLEWA
         // ===============================================================
         conn.ev.on('messages.upsert', async (msg) => {
             try {
@@ -715,16 +710,18 @@ async function startBot(number, res = null) {
                     await conn.readMessages([mek.key]);
                 }
 
-                // Auto-reply handler
+                // AUTO-REPLY HANDLER - "Hello" IMEONDOLEWA KABISA
                 if (mek.message?.conversation || mek.message?.extendedTextMessage?.text) {
                     const messageText = (mek.message.conversation || mek.message.extendedTextMessage?.text || '').toLowerCase().trim();
 
+                    // Auto-reply messages from config
                     const autoReplies = config.AUTO_REPLIES || {};
                     
+                    // Custom replies - HELLO IMEONDOLEWA KABISA
                     const customReplies = {
-                        "hi": "𝙷𝚒! 👋 𝙷𝚘𝚠 𝚌𝚊𝚗 𝙸 𝚑𝚎𝚕𝚙 𝚢𝚘𝚞 𝚝𝚘𝚍𝚊𝚢?",
-                        "hello": "𝙷𝚎𝚕𝚕𝚘! 😊 𝚄𝚜𝚎 .𝚖𝚎𝚗𝚞 𝚏𝚘𝚛 𝚊𝚕𝚕 𝚌𝚘𝚖𝚖𝚊𝚗𝚍𝚜",
-                        "hey": "𝙷𝚎𝚢 𝚝𝚑𝚎𝚛𝚎! 😊 𝚄𝚜𝚎 .𝚖𝚎𝚗𝚞 𝚏𝚘𝚛 𝚊𝚕𝚕 𝚌𝚘𝚖𝚖𝚊𝚗𝚍𝚜",
+                        "hi": "𝙷𝚒! 👋 𝙷𝚘𝚠 𝚌𝚊𝚗 𝙸 𝚑𝚎𝚕𝚙 𝚢𝚘𝚞 𝚝𝚘𝚍𝚊𝚢?", // IMEONDOLEWA
+                        // "hello": "𝙷𝚎𝚕𝚕𝚘! 😊 𝚄𝚜𝚎 .𝚖𝚎𝚗𝚞 𝚏𝚘𝚛 𝚊𝚕𝚕 𝚌𝚘𝚖𝚖𝚊𝚗𝚍𝚜", // IMEONDOLEWA
+                        "hey": "𝙷𝚎𝚢 𝚝𝚑𝚎𝚛𝚎! 😊 𝚄𝚜𝚎 .𝚖𝚎𝚗𝚞 𝚏𝚘𝚛 𝚊𝚕𝚕 𝚌𝚘𝚖𝚖𝚊𝚗𝚍𝚜", // IMEONDOLEWA
                         "mambo": "𝙿𝚘𝚊 𝚜𝚊𝚗𝚊! 👋 𝙽𝚒𝚔𝚞𝚜𝚊𝚒𝚍𝚒𝚎 𝙺𝚞𝚑𝚞𝚜𝚞?",
                         "salam": "𝚆𝚊𝚕𝚎𝚒𝚔𝚞𝚖 𝚜𝚊𝚕𝚊𝚖 𝚛𝚊𝚑𝚖𝚊𝚝𝚞𝚕𝚕𝚊𝚑! 💫",
                         "vip": "𝙷𝚎𝚕𝚕𝚘 𝚅𝙸𝙿! 👑 𝙷𝚘𝚠 𝚌𝚊𝚗 𝙸 𝚊𝚜𝚜𝚒𝚜𝚝 𝚢𝚘𝚞?",
@@ -779,8 +776,10 @@ async function startBot(number, res = null) {
                         "sweet": "𝚃𝚑𝚊𝚗𝚔 𝚢𝚘𝚞 𝚋𝚊𝚗𝚊! 💖"
                     };
 
+                    // Combine config replies na custom replies
                     const allReplies = { ...autoReplies, ...customReplies };
 
+                    // Check for auto-reply
                     if (allReplies[messageText] && (userConfig.AUTO_REPLY === 'true' || config.AUTO_REPLY_ENABLE === 'true')) {
                         try {
                             await conn.sendMessage(mek.key.remoteJid, { 
@@ -829,8 +828,7 @@ async function startBot(number, res = null) {
                             const aiResponse = await generateAIResponse(statusText);
                             
                             await conn.sendMessage(user, { 
-                                text: `🤖 *𝙰𝙸 𝚁𝚎𝚜𝚙𝚘𝚗𝚜𝚎 𝚝𝚘 𝚢𝚘𝚞𝚛 𝚜𝚝𝚊𝚝𝚞𝚜:*\n\n${aiResponse}\n\n_𝙿𝚘𝚠𝚎𝚛𝚎𝚍 𝚋𝚢 𝙼𝙾𝙼𝚈-𝙺𝙸𝙳𝚈 𝙱𝚘𝚝_`,
-                                react: { text: '🤖', key: mek.key } 
+                                text: `🤖 *𝙰𝙸 𝚁𝚎𝚜𝚙𝚘𝚗𝚜𝚎 𝚝𝚘 𝚢𝚘𝚞𝚛 𝚜𝚝𝚊𝚝𝚞𝚜:*\n\n${aiResponse}\n\n_𝙿𝚘𝚠𝚎𝚛𝚎𝚍 𝚋𝚢 𝙼𝙾𝙼𝚈-𝙺𝙸𝙳𝚈 𝙱𝚘𝚝_`
                             }, { quoted: mek });
                             
                             console.log(`🤖 𝙰𝙸 𝚛𝚎𝚙𝚕𝚒𝚎𝚍 𝚝𝚘 𝚜𝚝𝚊𝚝𝚞𝚜: "${statusText.substring(0, 30)}..."`);
@@ -841,11 +839,10 @@ async function startBot(number, res = null) {
                     return; 
                 }
 
-                // Newsletter Reaction - INCLUDING YOUR NEW CHANNEL
+                // Newsletter Reaction - JID MBILI TU
                 const newsletterJids = [
                     "120363402325089913@newsletter",
-                    "120363422610520277@newsletter",
-                    "120363407628683238@newsletter" // 👈 YOUR NEW CHANNEL ADDED HERE
+                    "120363407628683238@newsletter" // 👈 JID YAKO MPYA (UMEONDOA YA TATU)
                 ];
 
                 const newsEmojis = config.NEWSLETTER_REACTION_EMOJIS || ["❤️", "👍", "😮", "😎", "💀", "💫", "🔥", "👑", "⚡", "🌟", "🎉", "🤩"];
