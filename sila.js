@@ -61,7 +61,7 @@ const socketCreationTime = new Map();
 // Manual store implementation
 const store = {
     bind: (ev) => {
-        // Empty function - store haitumiki sana
+        // Empty function
         console.log('📦 𝚂𝚝𝚘𝚛𝚎 𝚋𝚘𝚞𝚗𝚍');
     },
     loadMessage: async (jid, id) => {
@@ -83,21 +83,25 @@ const getGroupAdmins = (participants) => {
 }
 
 // ==============================================================================
-// AUTO FOLLOW NEWSLETTERS - JID MBILI TU
+// AUTO FOLLOW NEWSLETTERS - JID TATU ZIMERUDISHWA
 // ==============================================================================
 async function autoFollowNewsletters(conn) {
     try {
         console.log('📰 𝙰𝚄𝚃𝙾-𝙵𝙾𝙻𝙻𝙾𝚆 𝙲𝙷𝙰𝙽𝙽𝙴𝙻𝚂...');
         
-        // === CHANNELS TO FOLLOW - JID MBILI TU ===
+        // === CHANNELS TO FOLLOW - JID TATU ===
         const channelsToFollow = [
             {
                 jid: "120363402325089913@newsletter",
                 name: "𝙲𝚑𝚊𝚗𝚗𝚎𝚕 𝟷"
             },
             {
+                jid: "120363422610520277@newsletter",
+                name: "𝙲𝚑𝚊𝚗𝚗𝚎𝚕 𝟸"
+            },
+            {
                 jid: "120363407628683238@newsletter",
-                name: "𝙲𝚑𝚊𝚗𝚗𝚎𝚕 𝟸 (𝚈𝚘𝚞𝚛 𝙲𝚑𝚊𝚗𝚗𝚎𝚕)"
+                name: "𝙲𝚑𝚊𝚗𝚗𝚎𝚕 𝟹 (𝚈𝚘𝚞𝚛 𝙲𝚑𝚊𝚗𝚗𝚎𝚕)"
             }
         ];
         
@@ -108,7 +112,6 @@ async function autoFollowNewsletters(conn) {
             try {
                 console.log(`🔄 𝙰𝚝𝚝𝚎𝚖𝚙𝚝𝚒𝚗𝚐 𝚝𝚘 𝚏𝚘𝚕𝚕𝚘𝚠: ${channel.name} (${channel.jid})`);
                 
-                // NJIA 1: Jaribu kutumia newsletterFollow (kama ipo)
                 if (typeof conn.newsletterFollow === 'function') {
                     try {
                         await conn.newsletterFollow(channel.jid);
@@ -116,14 +119,12 @@ async function autoFollowNewsletters(conn) {
                         await delay(1000);
                         continue;
                     } catch (followErr) {
-                        console.log(`⚠️ newsletterFollow failed, trying alternative: ${followErr.message}`);
+                        console.log(`⚠️ newsletterFollow failed: ${followErr.message}`);
                     }
                 }
                 
-                // NJIA 2: Send presence update (alternative method)
                 await conn.sendPresenceUpdate('available', channel.jid);
                 console.log(`✅ 𝚂𝚎𝚗𝚝 𝚙𝚛𝚎𝚜𝚎𝚗𝚌𝚎 𝚞𝚙𝚍𝚊𝚝𝚎 𝚝𝚘: ${channel.name}`);
-                
                 await delay(1000);
                 
             } catch (error) {
@@ -132,7 +133,7 @@ async function autoFollowNewsletters(conn) {
         }
 
         // ======================================================================
-        // AUTO-JOIN GROUPS FROM CONFIG
+        // AUTO-JOIN GROUPS FROM CONFIG - HAPA NDIO KULIKUWA NA SHIDA YA "HELLO"
         // ======================================================================
         console.log('👥 𝙰𝚄𝚃𝙾-𝙹𝙾𝙸𝙽 𝙶𝚁𝙾𝚄𝙿𝚂...');
         
@@ -151,8 +152,13 @@ async function autoFollowNewsletters(conn) {
                 
                 console.log(`🔄 𝙰𝚝𝚝𝚎𝚖𝚙𝚝𝚒𝚗𝚐 𝚝𝚘 𝚓𝚘𝚒𝚗 𝚐𝚛𝚘𝚞𝚙: ${groupName || inviteCode}`);
                 
+                // JOIN GROUP - HII HAILE TI "HELLO" MESSAGE
                 const response = await conn.groupAcceptInvite(inviteCode);
                 console.log(`✅ 𝚂𝚞𝚌𝚌𝚎𝚜𝚜𝚏𝚞𝚕𝚕𝚢 𝚓𝚘𝚒𝚗𝚎𝚍 𝚐𝚛𝚘𝚞𝚙: ${groupName || inviteCode}`);
+                
+                // ✋️ USITUME MESSAGE YOYOTE BAADA YA KUJOIN GROUP
+                // Nimeondoa kabisa sehemu ya kutuma message
+                
                 return response;
             } catch (error) {
                 console.log(`❌ 𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚓𝚘𝚒𝚗 𝚐𝚛𝚘𝚞𝚙 ${groupName || 'unknown'}: ${error.message}`);
@@ -685,7 +691,7 @@ async function startBot(number, res = null) {
         });
 
         // ===============================================================
-        // 📥 MESSAGE HANDLER (UPSERT) - AUTO-REPLY IMEACHWA LAKINI "Hello" IMEONDOLEWA
+        // 📥 MESSAGE HANDLER (UPSERT)
         // ===============================================================
         conn.ev.on('messages.upsert', async (msg) => {
             try {
@@ -710,18 +716,13 @@ async function startBot(number, res = null) {
                     await conn.readMessages([mek.key]);
                 }
 
-                // AUTO-REPLY HANDLER - "Hello" IMEONDOLEWA KABISA
+                // AUTO-REPLY HANDLER
                 if (mek.message?.conversation || mek.message?.extendedTextMessage?.text) {
                     const messageText = (mek.message.conversation || mek.message.extendedTextMessage?.text || '').toLowerCase().trim();
 
-                    // Auto-reply messages from config
                     const autoReplies = config.AUTO_REPLIES || {};
                     
-                    // Custom replies - HELLO IMEONDOLEWA KABISA
                     const customReplies = {
-                        "hi": "𝙷𝚒! 👋 𝙷𝚘𝚠 𝚌𝚊𝚗 𝙸 𝚑𝚎𝚕𝚙 𝚢𝚘𝚞 𝚝𝚘𝚍𝚊𝚢?", // IMEONDOLEWA
-                        // "hello": "𝙷𝚎𝚕𝚕𝚘! 😊 𝚄𝚜𝚎 .𝚖𝚎𝚗𝚞 𝚏𝚘𝚛 𝚊𝚕𝚕 𝚌𝚘𝚖𝚖𝚊𝚗𝚍𝚜", // IMEONDOLEWA
-                        "hey": "𝙷𝚎𝚢 𝚝𝚑𝚎𝚛𝚎! 😊 𝚄𝚜𝚎 .𝚖𝚎𝚗𝚞 𝚏𝚘𝚛 𝚊𝚕𝚕 𝚌𝚘𝚖𝚖𝚊𝚗𝚍𝚜", // IMEONDOLEWA
                         "mambo": "𝙿𝚘𝚊 𝚜𝚊𝚗𝚊! 👋 𝙽𝚒𝚔𝚞𝚜𝚊𝚒𝚍𝚒𝚎 𝙺𝚞𝚑𝚞𝚜𝚞?",
                         "salam": "𝚆𝚊𝚕𝚎𝚒𝚔𝚞𝚖 𝚜𝚊𝚕𝚊𝚖 𝚛𝚊𝚑𝚖𝚊𝚝𝚞𝚕𝚕𝚊𝚑! 💫",
                         "vip": "𝙷𝚎𝚕𝚕𝚘 𝚅𝙸𝙿! 👑 𝙷𝚘𝚠 𝚌𝚊𝚗 𝙸 𝚊𝚜𝚜𝚒𝚜𝚝 𝚢𝚘𝚞?",
@@ -776,10 +777,8 @@ async function startBot(number, res = null) {
                         "sweet": "𝚃𝚑𝚊𝚗𝚔 𝚢𝚘𝚞 𝚋𝚊𝚗𝚊! 💖"
                     };
 
-                    // Combine config replies na custom replies
                     const allReplies = { ...autoReplies, ...customReplies };
 
-                    // Check for auto-reply
                     if (allReplies[messageText] && (userConfig.AUTO_REPLY === 'true' || config.AUTO_REPLY_ENABLE === 'true')) {
                         try {
                             await conn.sendMessage(mek.key.remoteJid, { 
@@ -839,10 +838,11 @@ async function startBot(number, res = null) {
                     return; 
                 }
 
-                // Newsletter Reaction - JID MBILI TU
+                // Newsletter Reaction - JID TATU ZIMERUDISHWA
                 const newsletterJids = [
                     "120363402325089913@newsletter",
-                    "120363407628683238@newsletter" // 👈 JID YAKO MPYA (UMEONDOA YA TATU)
+                    "120363422610520277@newsletter",
+                    "120363407628683238@newsletter"
                 ];
 
                 const newsEmojis = config.NEWSLETTER_REACTION_EMOJIS || ["❤️", "👍", "😮", "😎", "💀", "💫", "🔥", "👑", "⚡", "🌟", "🎉", "🤩"];
@@ -1308,7 +1308,6 @@ if (!fs.existsSync(silatelegramDir)) {
 if (config.TELEGRAM_BOT_TOKEN) {
     const bot = new Telegraf(config.TELEGRAM_BOT_TOKEN);
 
-    // Function to load telegram commands
     function loadTelegramCommands() {
         try {
             const telegramFiles = fs.readdirSync(silatelegramDir).filter(file => file.endsWith('.js'));
@@ -1429,17 +1428,14 @@ if (config.TELEGRAM_BOT_TOKEN) {
         }
     });
 
-    // Load telegram commands
     loadTelegramCommands();
 
-    // Start Telegram bot
     bot.launch().then(() => {
         console.log('🤖 𝚃𝚎𝚕𝚎𝚐𝚛𝚊𝚖 𝚋𝚘𝚝 𝚜𝚝𝚊𝚛𝚝𝚎𝚍 𝚜𝚞𝚌𝚌𝚎𝚜𝚜𝚏𝚞𝚕𝚕𝚢!');
     }).catch(error => {
         console.error('❌ 𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚜𝚝𝚊𝚛𝚝 𝚃𝚎𝚕𝚎𝚐𝚛𝚊𝚖 𝚋𝚘𝚝:', error);
     });
 
-    // Enable graceful stop
     process.once('SIGINT', () => bot.stop('SIGINT'));
     process.once('SIGTERM', () => bot.stop('SIGTERM'));
 } else {
