@@ -1,93 +1,251 @@
-const { cmd, commands } = require('../momy');
+const { cmd } = require('../momy');
+const config = require('../config');
 const axios = require('axios');
 
-// Define combined fakevCard 
-const fakevCard = {
-  key: {
-    fromMe: false,
-    participant: "0@s.whatsapp.net",
-    remoteJid: "status@broadcast"
-  },
-  message: {
-    contactMessage: {
-      displayName: "© 𝐒𝐈𝐋𝐀-𝐌𝐃",
-      vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:𝐒𝐈𝐋𝐀 𝐌𝐃 𝐁𝐎𝐓\nORG:𝐒𝐈𝐋𝐀-𝐌𝐃;\nTEL;type=CELL;type=VOICE;waid=255789661031:+255789661031\nEND:VCARD`
-    }
-  }
-};
-
-const getContextInfo = (m) => {
-    return {
-        mentionedJid: [m.sender],
-        forwardingScore: 999,
-        isForwarded: true,
-        forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363402325089913@newsletter',
-            newsletterName: '© 𝐒𝐈𝐋𝐀 𝐌𝐃',
-            serverMessageId: 143,
-        },
-    };
-};
-
+// ===================== MAIN AI COMMAND (GPT-5) =====================
 cmd({
     pattern: "ai",
     alias: ["gpt", "ask", "think2", "silai", "brainy", "chat"],
     react: "🤖",
-    desc: "Ask AI anything",
+    desc: "Ask AI anything (GPT-5)",
     category: "ai",
     filename: __filename
 },
-async(conn, mek, m, {from, prefix, l, quoted, body, isCmd, command, args, q, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply}) => {
+async(conn, mek, m, {from, q, reply}) => {
 try{
-    
     if (!q || !q.trim()) {
-        return await conn.sendMessage(from, {
-            text: `❌ 𝙿𝚕𝚎𝚊𝚜𝚎 𝚊𝚜𝚔 𝚊 𝚚𝚞𝚎𝚜𝚝𝚒𝚘𝚗\n\n𝙴𝚡𝚖𝚕: .𝚊𝚒 𝚆𝚑𝚊𝚝 𝚒𝚜 𝚙𝚢𝚝𝚑𝚘𝚗?`,
-            contextInfo: getContextInfo({ sender: sender })
-        }, { quoted: fakevCard });
+        return reply(`❌ Please ask a question\n\nExample: .ai What is python?`);
     }
 
-    // Show typing indicator
     await conn.sendPresenceUpdate('composing', from);
 
-    // Call AI API
     const response = await axios.get(`https://api.yupra.my.id/api/ai/gpt5?text=${encodeURIComponent(q.trim())}`);
     
-    if (!response.data) {
-        throw new Error('No response from API');
-    }
+    if (!response.data) throw new Error('No response from API');
 
     let aiResponse = response.data.response || response.data.result || response.data.data || JSON.stringify(response.data);
-
-    // Truncate if too long
-    if (aiResponse.length > 4096) {
-        aiResponse = aiResponse.substring(0, 4090) + '...';
-    }
+    if (aiResponse.length > 4096) aiResponse = aiResponse.substring(0, 4090) + '...';
 
     await conn.sendPresenceUpdate('paused', from);
 
-    await conn.sendMessage(from, {
-        text: `┏━❑ 𝐀𝐈 𝐆𝐏𝐓 ━━━━━━━━━\n┃ 🤖 𝑨𝒏𝒔𝒘𝒆𝒓:\n┃\n┃ ${aiResponse}`,
-        contextInfo: getContextInfo({ sender: sender })
-    }, { quoted: fakevCard });
+    await reply(aiResponse);
 
 } catch (e) {
     await conn.sendPresenceUpdate('paused', from);
-    
-    let errorMsg = '❌ 𝙰𝙸 𝚖𝚊𝚕𝚏𝚞𝚗𝚌𝚝𝚒𝚘𝚗𝚒𝚗𝚐';
-    
-    if (e.response?.status === 429) {
-        errorMsg = '❌ 𝚁𝚊𝚝𝚎 𝚕𝚒𝚖𝚒𝚝𝚎𝚍 𝚝𝚛𝚢 𝚊𝚐𝚊𝚒𝚗 𝚕𝚊𝚝𝚎𝚛';
-    } else if (e.response?.status === 500) {
-        errorMsg = '❌ 𝙰𝙸 𝚜𝚎𝚛𝚟𝚎𝚛 𝚎𝚛𝚛𝚘𝚛';
-    } else if (e.code === 'ECONNABORTED') {
-        errorMsg = '❌ 𝚁𝚎𝚚𝚞𝚎𝚜𝚝 𝚝𝚒𝚖𝚎𝚘𝚞𝚝';
-    }
+    let errorMsg = '❌ AI malfunctioning';
+    if (e.response?.status === 429) errorMsg = '❌ Rate limited try again later';
+    else if (e.response?.status === 500) errorMsg = '❌ AI server error';
+    else if (e.code === 'ECONNABORTED') errorMsg = '❌ Request timeout';
+    else errorMsg = `❌ Error: ${e.message}`;
 
+    reply(errorMsg);
+}
+});
+
+// ===================== GPT-OSS-120B =====================
+cmd({
+    pattern: "gptoss",
+    alias: ["oss", "gpt120b"],
+    react: "🧠",
+    desc: "GPT-OSS-120B AI model",
+    category: "ai"
+},
+async(conn, mek, m, {from, q, reply}) => {
+try{
+    if (!q) return reply(`❌ Please ask a question\n\nExample: .gptoss Hello, who are you?`);
+
+    await conn.sendPresenceUpdate('composing', from);
+    
+    const response = await axios.get(`https://api.siputzx.my.id/api/ai/gptoss120b?prompt=${encodeURIComponent(q)}&system=You+are+a+helpful+assistant.&temperature=0.7`);
+    
+    let answer = response.data?.data?.response || response.data?.response || JSON.stringify(response.data);
+    if (answer.length > 4096) answer = answer.substring(0, 4090) + '...';
+
+    await conn.sendPresenceUpdate('paused', from);
+    reply(answer);
+
+} catch (e) {
+    reply(`❌ Error: ${e.message}`);
+}
+});
+
+// ===================== PHI-2 =====================
+cmd({
+    pattern: "phi2",
+    alias: ["phi"],
+    react: "🔬",
+    desc: "Microsoft Phi-2 AI model",
+    category: "ai"
+},
+async(conn, mek, m, {from, q, reply}) => {
+try{
+    if (!q) return reply(`❌ Please ask a question\n\nExample: .phi2 What is machine learning?`);
+
+    await conn.sendPresenceUpdate('composing', from);
+    
+    const response = await axios.get(`https://api.siputzx.my.id/api/ai/phi2?prompt=${encodeURIComponent(q)}&system=You+are+a+helpful+assistant.&temperature=0.7`);
+    
+    let answer = response.data?.data?.response || response.data?.response || JSON.stringify(response.data);
+    if (answer.length > 4096) answer = answer.substring(0, 4090) + '...';
+
+    await conn.sendPresenceUpdate('paused', from);
+    reply(answer);
+
+} catch (e) {
+    reply(`❌ Error: ${e.message}`);
+}
+});
+
+// ===================== DEEPSEEK-R1 =====================
+cmd({
+    pattern: "deepseek",
+    alias: ["deepseekr1", "ds"],
+    react: "🧐",
+    desc: "DeepSeek-R1 AI model",
+    category: "ai"
+},
+async(conn, mek, m, {from, q, reply}) => {
+try{
+    if (!q) return reply(`❌ Please ask a question\n\nExample: .deepseek What is consciousness?`);
+
+    await conn.sendPresenceUpdate('composing', from);
+    
+    const response = await axios.get(`https://api.siputzx.my.id/api/ai/deepseekr1?prompt=${encodeURIComponent(q)}&system=You+are+a+helpful+assistant.&temperature=0.7`);
+    
+    let answer = response.data?.data?.response || response.data?.response || JSON.stringify(response.data);
+    if (answer.length > 4096) answer = answer.substring(0, 4090) + '...';
+
+    await conn.sendPresenceUpdate('paused', from);
+    reply(answer);
+
+} catch (e) {
+    reply(`❌ Error: ${e.message}`);
+}
+});
+
+// ===================== DUCK AI IMAGE =====================
+cmd({
+    pattern: "duckai",
+    alias: ["duckimg", "aigen"],
+    react: "🦆",
+    desc: "Generate image with Duck AI",
+    category: "ai"
+},
+async(conn, mek, m, {from, q, reply}) => {
+try{
+    if (!q) return reply(`❌ Please describe the image\n\nExample: .duckai a cat sitting on the moon`);
+
+    await conn.sendPresenceUpdate('composing', from);
+    
+    const response = await axios.get(`https://api.siputzx.my.id/api/ai/duckaiimage?prompt=${encodeURIComponent(q)}`, {
+        responseType: 'arraybuffer'
+    });
+    
+    if (!response.data) throw new Error('No image generated');
+
+    await conn.sendPresenceUpdate('paused', from);
+    
     await conn.sendMessage(from, {
-        text: errorMsg,
-        contextInfo: getContextInfo({ sender: sender })
-    }, { quoted: fakevCard });
-    l(e);
+        image: Buffer.from(response.data),
+        caption: `🦆 *Duck AI Generated Image*\n\nPrompt: ${q}`
+    });
+
+} catch (e) {
+    reply(`❌ Error: ${e.message}`);
+}
+});
+
+// ===================== GEMINI LITE =====================
+cmd({
+    pattern: "gemini",
+    alias: ["gemini-lite", "geminilite"],
+    react: "✨",
+    desc: "Google Gemini Lite AI",
+    category: "ai"
+},
+async(conn, mek, m, {from, q, reply}) => {
+try{
+    if (!q) return reply(`❌ Please ask a question\n\nExample: .gemini What is the capital of France?`);
+
+    await conn.sendPresenceUpdate('composing', from);
+    
+    const response = await axios.get(`https://api.siputzx.my.id/api/ai/gemini-lite?prompt=${encodeURIComponent(q)}&model=gemini-2.0-flash-lite`);
+    
+    let answer = response.data?.data?.response || response.data?.response || JSON.stringify(response.data);
+    if (answer.length > 4096) answer = answer.substring(0, 4090) + '...';
+
+    await conn.sendPresenceUpdate('paused', from);
+    reply(answer);
+
+} catch (e) {
+    reply(`❌ Error: ${e.message}`);
+}
+});
+
+// ===================== GITA (BHAGAVAD GITA) =====================
+cmd({
+    pattern: "gita",
+    alias: ["bhagavad", "gitaai"],
+    react: "🕉️",
+    desc: "Ask about Bhagavad Gita",
+    category: "ai"
+},
+async(conn, mek, m, {from, q, reply}) => {
+try{
+    if (!q) return reply(`❌ Please ask a question\n\nExample: .gita What is karma?`);
+
+    await conn.sendPresenceUpdate('composing', from);
+    
+    const response = await axios.get(`https://api.siputzx.my.id/api/ai/gita?q=${encodeURIComponent(q)}`);
+    
+    let answer = response.data?.data?.response || response.data?.response || JSON.stringify(response.data);
+    if (answer.length > 4096) answer = answer.substring(0, 4090) + '...';
+
+    await conn.sendPresenceUpdate('paused', from);
+    reply(answer);
+
+} catch (e) {
+    reply(`❌ Error: ${e.message}`);
+}
+});
+
+// ===================== BIBLE AI =====================
+cmd({
+    pattern: "bibleai",
+    alias: ["bible", "bibleq"],
+    react: "📖",
+    desc: "Ask questions about the Bible",
+    category: "ai"
+},
+async(conn, mek, m, {from, q, reply}) => {
+try{
+    if (!q) return reply(`❌ Please ask a question\n\nExample: .bibleai What is faith?`);
+
+    await conn.sendPresenceUpdate('composing', from);
+    
+    const response = await axios.get(`https://api.siputzx.my.id/api/ai/bibleai?question=${encodeURIComponent(q)}&translation=ESV`);
+    
+    let answer = response.data?.data?.results?.answer || response.data?.data?.answer || JSON.stringify(response.data);
+    
+    // Add Bible verses if available
+    if (response.data?.data?.results?.sources) {
+        const verses = response.data.data.results.sources
+            .filter(s => s.type === 'verse')
+            .slice(0, 5)
+            .map(v => `• ${v.text} (${v.splitReference?.refLong || ''})`)
+            .join('\n');
+        
+        if (verses) {
+            answer += '\n\n📖 *Related Verses:*\n' + verses;
+        }
+    }
+    
+    if (answer.length > 4096) answer = answer.substring(0, 4090) + '...';
+
+    await conn.sendPresenceUpdate('paused', from);
+    reply(answer);
+
+} catch (e) {
+    reply(`❌ Error: ${e.message}`);
 }
 });
