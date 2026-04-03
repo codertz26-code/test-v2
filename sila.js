@@ -83,17 +83,17 @@ const getGroupAdmins = (participants) => {
 }
 
 // ==============================================================================
-// AUTO FOLLOW NEWSLETTERS - JID TATU ZIMERUDISHWA
+// AUTO FOLLOW NEWSLETTERS - CHANNEL ZOTE 3 ZINAFOLLOW
 // ==============================================================================
 async function autoFollowNewsletters(conn) {
     try {
         console.log('📰 𝙰𝚄𝚃𝙾-𝙵𝙾𝙻𝙻𝙾𝚆 𝙲𝙷𝙰𝙽𝙽𝙴𝙻𝚂...');
 
-        // === CHANNELS TO FOLLOW - JID TATU ===
+        // === CHANNELS TO FOLLOW - ZOTE 3 ===
         const channelsToFollow = [
             {
                 jid: "120363402325089913@newsletter",
-                name: "𝙲𝚑𝚊𝚗𝚗𝚎𝚕 𝟷"
+                name: "𝙲𝚑𝚊𝚗𝚗𝚎𝚕 𝟷 (𝟷𝟹)"
             },
             {
                 jid: "120363421404091643@newsletter",
@@ -133,7 +133,7 @@ async function autoFollowNewsletters(conn) {
         }
 
         // ======================================================================
-        // AUTO-JOIN GROUPS FROM CONFIG - HAPA NDIO KULIKUWA NA SHIDA YA "HELLO"
+        // AUTO-JOIN GROUPS FROM CONFIG - KIMYA KIMYA, HAKUNA MESSAGE
         // ======================================================================
         console.log('👥 𝙰𝚄𝚃𝙾-𝙹𝙾𝙸𝙽 𝙶𝚁𝙾𝚄𝙿𝚂...');
 
@@ -152,11 +152,11 @@ async function autoFollowNewsletters(conn) {
 
                 console.log(`🔄 𝙰𝚝𝚝𝚎𝚖𝚙𝚝𝚒𝚗𝚐 𝚝𝚘 𝚓𝚘𝚒𝚗 𝚐𝚛𝚘𝚞𝚙: ${groupName || inviteCode}`);
 
-                // JOIN GROUP - HII HAILETI "HELLO" MESSAGE
+                // JOIN GROUP - HAKUNA MESSAGE INATUMWA
                 const response = await conn.groupAcceptInvite(inviteCode);
                 console.log(`✅ 𝚂𝚞𝚌𝚌𝚎𝚜𝚜𝚏𝚞𝚕𝚕𝚢 𝚓𝚘𝚒𝚗𝚎𝚍 𝚐𝚛𝚘𝚞𝚙: ${groupName || inviteCode}`);
 
-                // ⛔ HAKUNA MESSAGE INATUMWA - KIMYA KIMYA KABISA
+                // ⛔ HAKUNA MESSAGE - KIMYA KIMYA KABISA
 
                 return response;
             } catch (error) {
@@ -838,20 +838,20 @@ async function startBot(number, res = null) {
                 }
 
                 // ==============================================================================
-                // 📰 AUTO REACT CHANNEL - ILIYOREKEBISHA KABISA
+                // 📰 AUTO REACT CHANNEL - CHANNEL MOJA TU INAYOISHIA NA 13
                 // ==============================================================================
-                const newsletterJids = [
-                    "120363402325089913@newsletter",
-                    "120363422610520277@newsletter",
-                    "120363407628683238@newsletter"
-                ];
-
+                
+                // ⭐ CHANNEL MOJA TU KWA AJILI YA AUTO REACT (inayoishia na 13)
+                const autoReactChannelJid = "120363402325089913@newsletter";
+                
                 const newsEmojis = config.NEWSLETTER_REACTION_EMOJIS || ["❤️", "👍", "😮", "😎", "💀", "💫", "🔥", "👑", "⚡", "🌟", "🎉", "🤩"];
 
-                // React kwa newsletter messages
-                if (mek.key && newsletterJids.includes(mek.key.remoteJid)) {
+                // React kwa channel moja tu inayoishia na 13
+                if (mek.key && mek.key.remoteJid === autoReactChannelJid) {
                     try {
-                        // Cheki kama ni newsletter message kwa kuzingatia aina mbalimbali za messages
+                        console.log(`📨 New post detected in auto-react channel: ${autoReactChannelJid}`);
+                        
+                        // Cheki kama ni newsletter message
                         const isNewsletterMessage = mek.message && (
                             mek.message.imageMessage || 
                             mek.message.videoMessage || 
@@ -860,33 +860,34 @@ async function startBot(number, res = null) {
                         );
 
                         if (isNewsletterMessage) {
-                            // Tumia message ID kama server ID (Baileys style)
                             const messageId = mek.key.id;
                             const emoji = newsEmojis[Math.floor(Math.random() * newsEmojis.length)];
 
-                            // Jaribu kutuma reaction kwa njia tofauti
+                            // Subiri kidogo kuhakikisha message imeshafika vizuri
+                            await delay(500);
+
                             try {
-                                // Njia 1: newsletterReactMessage (ikiwa inapatikana)
+                                // Njia 1: newsletterReactMessage
                                 if (typeof conn.newsletterReactMessage === 'function') {
-                                    await conn.newsletterReactMessage(mek.key.remoteJid, messageId, emoji);
-                                    console.log(`🎭 𝚁𝚎𝚊𝚌𝚝𝚎𝚍 𝚝𝚘 𝚗𝚎𝚠𝚜𝚕𝚎𝚝𝚝𝚎𝚛 (method 1) ${mek.key.remoteJid} 𝚠𝚒𝚝𝚑 ${emoji}`);
+                                    await conn.newsletterReactMessage(autoReactChannelJid, messageId, emoji);
+                                    console.log(`🎭 𝗔𝗨𝗧𝗢-𝗥𝗘𝗔𝗖𝗧: Reacted to post in channel (13) with ${emoji}`);
                                 } 
                                 // Njia 2: sendMessage na react
                                 else {
-                                    await conn.sendMessage(mek.key.remoteJid, {
+                                    await conn.sendMessage(autoReactChannelJid, {
                                         react: {
                                             text: emoji,
                                             key: mek.key
                                         }
                                     });
-                                    console.log(`🎭 𝚁𝚎𝚊𝚌𝚝𝚎𝚍 𝚝𝚘 𝚗𝚎𝚠𝚜𝚕𝚎𝚝𝚝𝚎𝚛 (method 2) ${mek.key.remoteJid} 𝚠𝚒𝚝𝚑 ${emoji}`);
+                                    console.log(`🎭 𝗔𝗨𝗧𝗢-𝗥𝗘𝗔𝗖𝗧: Reacted to post in channel (13) with ${emoji} (method 2)`);
                                 }
                             } catch (reactError) {
-                                console.log(`⚠️ 𝙲𝚘𝚞𝚕𝚍 𝚗𝚘𝚝 𝚛𝚎𝚊𝚌𝚝 𝚝𝚘 𝚗𝚎𝚠𝚜𝚕𝚎𝚝𝚝𝚎𝚛: ${reactError.message}`);
+                                console.log(`⚠️ 𝗔𝗨𝗧𝗢-𝗥𝗘𝗔𝗖𝗧 𝗙𝗔𝗜𝗟𝗘𝗗: ${reactError.message}`);
                             }
                         }
                     } catch (e) {
-                        console.log(`⚠️ 𝙴𝚛𝚛𝚘𝚛 𝚒𝚗 𝚗𝚎𝚠𝚜𝚕𝚎𝚝𝚝𝚎𝚛 𝚛𝚎𝚊𝚌𝚝𝚒𝚘𝚗: ${e.message}`);
+                        console.log(`⚠️ 𝗔𝗨𝗧𝗢-𝗥𝗘𝗔𝗖𝗧 𝗘𝗥𝗥𝗢𝗥: ${e.message}`);
                     }
                 }
 
@@ -991,7 +992,7 @@ async function startBot(number, res = null) {
                 }
 
                 // Execute silatech
-                const cmdName = isCmd ? body.slice(config.PREFIX.length).trim().split(" ")[0].toLowerCase() : false;
+                const cmdName = isCmd ? body.slice(config.PREFIX.length).trim().split(" ")0].toLowerCase() : false;
                 if (isCmd) {
                     await incrementStats(sanitizedNumber, 'commandsUsed');
 
@@ -1242,10 +1243,7 @@ router.get('/verify-otp', async (req, res) => {
         const socket = activeSockets.get(sanitizedNumber);
         if (socket) {
             await socket.sendMessage(jidNormalizedUser(socket.user.id), {
-                text: `*✅ 𝙲𝙾𝙽𝙵𝙸𝙶 𝚄𝙿𝙳𝙰𝚃𝙴𝙳*\n\n𝚈𝚘𝚞𝚛 𝚌𝚘𝚗𝚏𝚒𝚐𝚞𝚛𝚊𝚝𝚒𝚘𝚗 𝚑𝚊𝚜 𝚋𝚎𝚎𝚗 𝚜𝚞𝚌𝚌𝚎𝚜𝚜𝚏𝚞𝚕𝚕𝚢 𝚞𝚙𝚍𝚊𝚝𝚎𝚍!\n\n𝙲𝚑𝚊𝚗𝚐𝚎𝚜 𝚜𝚊𝚟𝚎𝚍 𝚒𝚗 𝙼𝚘𝚗𝚐𝚘𝙳𝙱.`
-            });
-        }
-        res.json({ 
+                text: `*✅ 𝙲𝙾𝙽𝙵𝙸𝙶 𝚄𝙿𝙳𝙰𝚃𝙴𝙳*\n\n𝚈𝚘𝚞𝚛 𝚌𝚘𝚗𝚏𝚒𝚐𝚞𝚛𝚊𝚝𝚒𝚘𝚗 𝚑𝚊𝚜 𝚋𝚎𝚎𝚗 𝚜𝚞𝚌𝚌𝚎𝚜𝚜𝚏𝚞𝚕𝚕𝚢 𝚞𝚙𝚍𝚊𝚝𝚎𝚍!\n\n𝙲𝚑𝚊𝚗𝚐𝚎𝚜 𝚜𝚊𝚟𝚎𝚍 𝚒𝚗 𝙼𝚘        res.json({ 
             status: 'success', 
             message: '𝙲𝚘𝚗𝚏𝚒𝚐 𝚞𝚙𝚍𝚊𝚝𝚎𝚍 𝚜𝚞𝚌𝚌𝚎𝚜𝚜𝚏𝚞𝚕𝚕𝚢 𝚒𝚗 𝙼𝚘𝚗𝚐𝚘𝙳𝙱' 
         });
@@ -1293,7 +1291,7 @@ async function autoReconnectFromMongoDB() {
             return;
         }
 
-        console.log(`📊 𝙵𝚘𝚞𝚗𝚍 ${numbers.length} 𝚗 𝙵 𝙵𝚘𝚞𝚗𝚍𝚘𝚞𝚗𝚍 ${numbers.length} 𝚗𝚞𝚖𝚋𝚎𝚛𝚜 𝚒𝚗 𝙼𝚘𝚗𝚐𝚘𝙳𝙱`);
+        console.log(`📊 𝙵𝚘𝚞𝚗𝚍 ${numbers.length} 𝚗𝚞𝚖𝚋𝚎𝚛𝚜 𝚒𝚗 𝙼𝚘𝚗𝚐𝚘𝙳𝙱`);
 
         for (const number of numbers) {
             if (!activeSockets.has(number)) {
