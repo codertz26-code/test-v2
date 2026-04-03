@@ -54,7 +54,10 @@ module.exports = {
     GOODBYE_IMAGE: process.env.GOODBYE_IMAGE || null,
     
     // Anti-links and anti-delete default settings
-    ANTI_LINK: process.env.ANTI_LINK || 'false', 
+    // Antilink settings
+    LINK_WARN_LIMIT: '3',        // Number of warnings before action
+    LINK_ACTION: 'mute',         // Action: 'kick' or 'mute'
+    LINK_WHITELIST: 'whatsapp.com,chat.whatsapp.com,youtube.com,youtu.be,instagram.com,facebook.com,tiktok.com',
     ANTI_DELETE: process.env.ANTI_DELETE || 'false',
     
     // Custom anti-link warning message
