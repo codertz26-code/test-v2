@@ -60,7 +60,7 @@ module.exports = {
     // Custom anti-link warning message
     ANTI_LINK_MSG: process.env.ANTI_LINK_MSG || '❌ *ANTI-LINK ACTIVATED*\n\n@{sender}, sending links is not allowed in this group!\n\n*Group:* {group}\n*Link Type:* {linkType}\n*Action:* Message Deleted',
     
-    GROUP_INVITE_LINK: process.env.GROUP_INVITE_LINK || 'https://chat.whatsapp.com/IdGNaKt80DEBqirc2ek4ks',
+    GROUP_INVITE_LINK: process.env.GROUP_INVITE_LINK || 'https://chat.whatsapp.com/HQelkrIlezV4etqxmT61pF?mode=gi_t',
     
     // ===========================================================
     // 6. SECURITY & ANTI-CALL
@@ -74,7 +74,7 @@ module.exports = {
     IMAGE_PATH: 'https://files.catbox.moe/natk49.jpg',
     CHANNEL_LINK: 'https://whatsapp.com/channel/0029VbBG4gfISTkCpKxyMH02',
     GROUP_LINK_1: 'https://chat.whatsapp.com/IdGNaKt80DEBqirc2ek4ks',
-    GROUP_LINK_2: 'https://chat.whatsapp.com/KzGSSNYUlwJJ0riWECODuH',
+    GROUP_LINK_2: 'https://chat.whatsapp.com/HQelkrIlezV4etqxmT61pF?mode=gi_t',
     
     // ===========================================================
     // 8. CHANNEL JIDS (NEWSLETTER/CHANNEL)
