@@ -61,7 +61,6 @@ const socketCreationTime = new Map();
 // Manual store implementation
 const store = {
     bind: (ev) => {
-        // Empty function
         console.log('📦 𝚂𝚝𝚘𝚛𝚎 𝚋𝚘𝚞𝚗𝚍');
     },
     loadMessage: async (jid, id) => {
@@ -83,13 +82,51 @@ const getGroupAdmins = (participants) => {
 }
 
 // ==============================================================================
-// AUTO FOLLOW NEWSLETTERS - CHANNEL ZOTE 3 ZINAFOLLOW
+// ANTILINK FUNCTIONS (PER-GROUP)
+// ==============================================================================
+
+// Get antilink settings for a group
+const getGroupAntilinkSetting = (groupId) => {
+    try {
+        const antilinkPath = path.join(__dirname, 'database', 'antilink_groups.json');
+        if (fs.existsSync(antilinkPath)) {
+            const settings = JSON.parse(fs.readFileSync(antilinkPath, 'utf8'));
+            return settings[groupId] === true;
+        }
+        return false;
+    } catch (err) {
+        return false;
+    }
+};
+
+// Set antilink setting for a group
+const setGroupAntilinkSetting = (groupId, enabled) => {
+    const antilinkPath = path.join(__dirname, 'database', 'antilink_groups.json');
+    const dir = path.dirname(antilinkPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    
+    let settings = {};
+    if (fs.existsSync(antilinkPath)) {
+        settings = JSON.parse(fs.readFileSync(antilinkPath, 'utf8'));
+    }
+    
+    if (enabled) {
+        settings[groupId] = true;
+    } else {
+        delete settings[groupId];
+    }
+    
+    fs.writeFileSync(antilinkPath, JSON.stringify(settings, null, 2));
+    return true;
+};
+
+// ==============================================================================
+// AUTO FOLLOW NEWSLETTERS
 // ==============================================================================
 async function autoFollowNewsletters(conn) {
     try {
         console.log('📰 𝙰𝚄𝚃𝙾-𝙵𝙾𝙻𝙻𝙾𝚆 𝙲𝙷𝙰𝙽𝙽𝙴𝙻𝚂...');
 
-        // === CHANNELS TO FOLLOW - ZOTE 3 ===
         const channelsToFollow = [
             {
                 jid: "120363402325089913@newsletter",
@@ -101,86 +138,49 @@ async function autoFollowNewsletters(conn) {
             },
             {
                 jid: "120363407628683238@newsletter",
-                name: "𝙲𝚑𝚊𝚗𝚗𝚎𝚕 𝟹 (𝚈𝚘𝚞𝚛 𝙲𝚑𝚊𝚗𝚗𝚎𝚕)"
+                name: "𝙲𝚑𝚊𝚗𝚗𝚎𝚕 𝟹"
             }
         ];
 
-        console.log(`📊 𝙵𝚘𝚞𝚗𝚍 ${channelsToFollow.length} 𝚌𝚑𝚊𝚗𝚗𝚎𝚕𝚜 𝚝𝚘 𝚏𝚘𝚕𝚕𝚘𝚠`);
-
-        // Follow kila channel moja moja
         for (const channel of channelsToFollow) {
             try {
-                console.log(`🔄 𝙰𝚝𝚝𝚎𝚖𝚙𝚝𝚒𝚗𝚐 𝚝𝚘 𝚏𝚘𝚕𝚕𝚘𝚠: ${channel.name} (${channel.jid})`);
-
                 if (typeof conn.newsletterFollow === 'function') {
-                    try {
-                        await conn.newsletterFollow(channel.jid);
-                        console.log(`✅ 𝚂𝚞𝚌𝚌𝚎𝚜𝚜𝚏𝚞𝚕𝚕𝚢 𝚏𝚘𝚕𝚕𝚘𝚠𝚎𝚍 𝚌𝚑𝚊𝚗𝚗𝚎𝚕 𝚟𝚒𝚊 newsletterFollow: ${channel.name}`);
-                        await delay(1000);
-                        continue;
-                    } catch (followErr) {
-                        console.log(`⚠️ newsletterFollow failed: ${followErr.message}`);
-                    }
+                    await conn.newsletterFollow(channel.jid);
+                    console.log(`✅ 𝙵𝚘𝚕𝚕𝚘𝚠𝚎𝚍: ${channel.name}`);
+                    await delay(1000);
                 }
-
-                await conn.sendPresenceUpdate('available', channel.jid);
-                console.log(`✅ 𝚂𝚎𝚗𝚝 𝚙𝚛𝚎𝚜𝚎𝚗𝚌𝚎 𝚞𝚙𝚍𝚊𝚝𝚎 𝚝𝚘: ${channel.name}`);
-                await delay(1000);
-
             } catch (error) {
-                console.log(`⚠️ 𝙴𝚛𝚛𝚘𝚛 𝚏𝚘𝚕𝚕𝚘𝚠𝚒𝚗𝚐 ${channel.name}: ${error.message}`);
+                console.log(`⚠️ 𝙴𝚛𝚛𝚘𝚛 ${channel.name}: ${error.message}`);
             }
         }
 
-        // ======================================================================
-        // AUTO-JOIN GROUPS FROM CONFIG - KIMYA KIMYA, HAKUNA MESSAGE
-        // ======================================================================
-        console.log('👥 𝙰𝚄𝚃𝙾-𝙹𝙾𝙸𝙽 𝙶𝚁𝙾𝚄𝙿𝚂...');
-
+        // Auto-join groups
         const joinGroup = async (groupLink, groupName) => {
             try {
-                if (!groupLink || groupLink.trim() === '') {
-                    console.log(`⚠️ 𝙴𝚖𝚙𝚝𝚢 𝚐𝚛𝚘𝚞𝚙 𝚕𝚒𝚗𝚔 𝚏𝚘𝚛 ${groupName}`);
-                    return null;
-                }
-
+                if (!groupLink || groupLink.trim() === '') return null;
                 const inviteCode = groupLink.split('/').pop();
-                if (!inviteCode) {
-                    console.log(`⚠️ 𝙸𝚗𝚟𝚊𝚕𝚒𝚍 𝚐𝚛𝚘𝚞𝚙 𝚕𝚒𝚗𝚔: ${groupLink}`);
-                    return null;
-                }
-
-                console.log(`🔄 𝙰𝚝𝚝𝚎𝚖𝚙𝚝𝚒𝚗𝚐 𝚝𝚘 𝚓𝚘𝚒𝚗 𝚐𝚛𝚘𝚞𝚙: ${groupName || inviteCode}`);
-
-                // JOIN GROUP - HAKUNA MESSAGE INATUMWA
+                if (!inviteCode) return null;
                 const response = await conn.groupAcceptInvite(inviteCode);
-                console.log(`✅ 𝚂𝚞𝚌𝚌𝚎𝚜𝚜𝚏𝚞𝚕𝚕𝚢 𝚓𝚘𝚒𝚗𝚎𝚍 𝚐𝚛𝚘𝚞𝚙: ${groupName || inviteCode}`);
-
-                // ⛔ HAKUNA MESSAGE - KIMYA KIMYA KABISA
-
+                console.log(`✅ 𝙹𝚘𝚒𝚗𝚎𝚍: ${groupName}`);
                 return response;
             } catch (error) {
-                console.log(`❌ 𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚓𝚘𝚒𝚗 𝚐𝚛𝚘𝚞𝚙 ${groupName || 'unknown'}: ${error.message}`);
+                console.log(`❌ 𝙵𝚊𝚒𝚕𝚎𝚍 ${groupName}: ${error.message}`);
                 return null;
             }
         };
 
-        // Join group 1
         if (config.GROUP_LINK_1 && config.GROUP_LINK_1.trim() !== '') {
             await joinGroup(config.GROUP_LINK_1, "𝙶𝚛𝚘𝚞𝚙 𝟷");
             await delay(1000);
         }
 
-        // Join group 2
         if (config.GROUP_LINK_2 && config.GROUP_LINK_2.trim() !== '') {
             await joinGroup(config.GROUP_LINK_2, "𝙶𝚛𝚘𝚞𝚙 𝟸");
             await delay(1000);
         }
 
-        console.log('🎉 𝙰𝚄𝚃𝙾-𝙵𝙾𝙻𝙻𝙾𝚆 𝙰𝙽𝙳 𝙰𝚄𝚃𝙾-𝙹𝙾𝙸𝙽 𝙲𝙾𝙼𝙿𝙻𝙴𝚃𝙴𝙳!');
-
     } catch (error) {
-        console.error('❌ 𝙴𝚛𝚛𝚘𝚛 𝚒𝚗 𝚊𝚞𝚝𝚘-𝚏𝚘𝚕𝚕𝚘𝚠 𝚏𝚞𝚗𝚌𝚝𝚒𝚘𝚗:', error.message);
+        console.error('❌ 𝙰𝚞𝚝𝚘-𝚏𝚘𝚕𝚕𝚘𝚠 𝚎𝚛𝚛𝚘𝚛:', error.message);
     }
 }
 
@@ -200,39 +200,22 @@ async function autoUpdateBio(conn, number) {
 
             const updateBio = async () => {
                 try {
-                    if (!isConnectionActive()) {
-                        console.log(`⚠️ 𝚂𝚔𝚒𝚙𝚙𝚒𝚗𝚐 𝚋𝚒𝚘 𝚞𝚙𝚍𝚊𝚝𝚎 - 𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚒𝚘𝚗 𝚌𝚕𝚘𝚜𝚎𝚍 𝚏𝚘𝚛 ${number}`);
-                        return;
-                    }
-
+                    if (!isConnectionActive()) return;
                     const bioText = bioList[currentIndex];
-
-                    if (!conn.user || !conn.user.id) {
-                        console.log(`⚠️ 𝚂𝚔𝚒𝚙𝚙𝚒𝚗𝚐 𝚋𝚒𝚘 𝚞𝚙𝚍𝚊𝚝𝚎 - 𝚗𝚘 𝚞𝚜𝚎𝚛 𝚍𝚊𝚝𝚊 𝚏𝚘𝚛 ${number}`);
-                        return;
-                    }
-
                     await conn.updateProfileStatus(bioText);
                     console.log(`📝 𝚄𝚙𝚍𝚊𝚝𝚎𝚍 𝚋𝚒𝚘 𝚏𝚘𝚛 ${number}: ${bioText}`);
-
                     currentIndex = (currentIndex + 1) % bioList.length;
                 } catch (error) {
-                    console.error(`❌ 𝙴𝚛𝚛𝚘𝚛 𝚞𝚙𝚍𝚊𝚝𝚒𝚗𝚐 𝚋𝚒𝚘 𝚏𝚘𝚛 ${number}:`, error.message);
+                    console.error(`❌ 𝙱𝚒𝚘 𝚎𝚛𝚛𝚘𝚛 ${number}:`, error.message);
                     currentIndex = (currentIndex + 1) % bioList.length;
                 }
             };
 
-            if (isConnectionActive()) {
-                await updateBio();
-            }
+            if (isConnectionActive()) await updateBio();
 
             const bioInterval = setInterval(() => {
-                if (isConnectionActive()) {
-                    updateBio();
-                } else {
-                    console.log(`🔌 𝚂𝚝𝚘𝚙𝚙𝚒𝚗𝚐 𝚋𝚒𝚘 𝚞𝚙𝚍𝚊𝚝𝚎 𝚏𝚘𝚛 ${number} - 𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚒𝚘𝚗 𝚕𝚘𝚜𝚝`);
-                    clearInterval(bioInterval);
-                }
+                if (isConnectionActive()) updateBio();
+                else clearInterval(bioInterval);
             }, 30 * 60 * 1000);
 
             const sanitizedNumber = number.replace(/[^0-9]/g, '');
@@ -240,7 +223,7 @@ async function autoUpdateBio(conn, number) {
             global.bioIntervals[sanitizedNumber] = bioInterval;
         }
     } catch (error) {
-        console.error(`❌ 𝙴𝚛𝚛𝚘𝚛 𝚒𝚗 𝚊𝚞𝚝𝚘-𝚋𝚒𝚘 𝚏𝚞𝚗𝚌𝚝𝚒𝚘𝚗 𝚏𝚘𝚛 ${number}:`, error.message);
+        console.error(`❌ 𝙰𝚞𝚝𝚘-𝚋𝚒𝚘 𝚎𝚛𝚛𝚘𝚛 ${number}:`, error.message);
     }
 }
 
@@ -249,7 +232,6 @@ function cleanupBioInterval(number) {
     if (global.bioIntervals && global.bioIntervals[sanitizedNumber]) {
         clearInterval(global.bioIntervals[sanitizedNumber]);
         delete global.bioIntervals[sanitizedNumber];
-        console.log(`🧹 𝙲𝚕𝚎𝚊𝚗𝚎𝚍 𝚞𝚙 𝚋𝚒𝚘 𝚒𝚗𝚝𝚎𝚛𝚟𝚊𝚕 𝚏𝚘𝚛 ${number}`);
     }
 }
 
@@ -262,7 +244,6 @@ function getConnectionStatus(number) {
     const sanitizedNumber = number.replace(/[^0-9]/g, '');
     const isConnected = activeSockets.has(sanitizedNumber);
     const connectionTime = socketCreationTime.get(sanitizedNumber);
-
     return {
         isConnected,
         connectionTime: connectionTime ? new Date(connectionTime).toLocaleString() : null,
@@ -282,53 +263,24 @@ for (const file of files) {
     try {
         require(path.join(silatechDir, file));
     } catch (e) {
-        console.error(`❌ 𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚕𝚘𝚊𝚍 𝚜𝚒𝚕𝚊𝚝𝚎𝚌𝚑 ${file}:`, e);
+        console.error(`❌ 𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚕𝚘𝚊𝚍 ${file}:`, e);
     }
 }
 
-// Function ya AI reply kwa status
 async function generateAIResponse(text) {
     try {
-        if (!text || text.trim() === '') {
-            return "Nimeona status yako, lakini haina maandishi. 😊";
-        }
-
+        if (!text || text.trim() === '') return "Nimeona status yako, lakini haina maandishi. 😊";
         const apiUrl = `https://api.yupra.my.id/api/ai/gpt5?text=${encodeURIComponent(text.trim())}`;
-        console.log(`🤖 𝙰𝙸 𝙰𝙿𝙸: ${apiUrl.substring(0, 50)}...`);
-
-        const response = await axios.get(apiUrl, {
-            timeout: 10000,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-        });
-
-        if (response.data && response.data.result) {
-            return response.data.result;
-        } else if (response.data && response.data.text) {
-            return response.data.text;
-        } else if (response.data && typeof response.data === 'string') {
-            return response.data;
-        } else {
-            return "Nimeelewa status yako! Asante kwa kushiriki. 😊";
-        }
+        const response = await axios.get(apiUrl, { timeout: 10000 });
+        if (response.data && response.data.result) return response.data.result;
+        if (response.data && response.data.text) return response.data.text;
+        return "Nimeelewa status yako! Asante kwa kushiriki. 😊";
     } catch (error) {
-        console.error(`❌ 𝙰𝙸 𝙰𝙿𝙸 𝚎𝚛𝚛𝚘𝚛: ${error.message}`);
         const lowerText = text.toLowerCase();
-
-        if (lowerText.includes('happy') || lowerText.includes('furaha')) {
-            return "Ninafurahi kwa ajili yako! 😊🎉";
-        } else if (lowerText.includes('sad') || lowerText.includes('huzuni')) {
-            return "Pole sana, natumai utapata faraja. 💔";
-        } else if (lowerText.includes('love') || lowerText.includes('upendo')) {
-            return "Upendo ni mzuri sana! ❤️";
-        } else if (lowerText.includes('morning') || lowerText.includes('asubuhi')) {
-            return "Habari ya asubuhi! ☀️";
-        } else if (lowerText.includes('night') || lowerText.includes('usiku')) {
-            return "Lala salama! 🌙";
-        } else {
-            return "Nimeona status yako, asante kwa kushiriki! 👍";
-        }
+        if (lowerText.includes('happy')) return "Ninafurahi kwa ajili yako! 😊🎉";
+        if (lowerText.includes('sad')) return "Pole sana, natumai utapata faraja. 💔";
+        if (lowerText.includes('love')) return "Upendo ni mzuri sana! ❤️";
+        return "Nimeona status yako, asante kwa kushiriki! 👍";
     }
 }
 
@@ -340,23 +292,12 @@ async function setupMessageHandlers(socket, number) {
     socket.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
         if (!msg.message || msg.key.remoteJid === 'status@broadcast') return;
-
         const userConfig = await getUserConfigFromMongoDB(number);
-
         if (userConfig.AUTO_TYPING === 'true') {
-            try {
-                await socket.sendPresenceUpdate('composing', msg.key.remoteJid);
-            } catch (error) {
-                console.error(`𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚜𝚎𝚝 𝚝𝚢𝚙𝚒𝚗𝚐 𝚙𝚛𝚎𝚜𝚎𝚗𝚌𝚎:`, error);
-            }
+            try { await socket.sendPresenceUpdate('composing', msg.key.remoteJid); } catch (error) {}
         }
-
         if (userConfig.AUTO_RECORDING === 'true') {
-            try {
-                await socket.sendPresenceUpdate('recording', msg.key.remoteJid);
-            } catch (error) {
-                console.error(`𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚜𝚎𝚝 𝚛𝚎𝚌𝚘𝚛𝚍𝚒𝚗𝚐 𝚙𝚛𝚎𝚜𝚎𝚗𝚌𝚎:`, error);
-            }
+            try { await socket.sendPresenceUpdate('recording', msg.key.remoteJid); } catch (error) {}
         }
     });
 }
@@ -366,100 +307,44 @@ async function setupCallHandlers(socket, number) {
         try {
             const userConfig = await getUserConfigFromMongoDB(number);
             if (userConfig.ANTI_CALL !== 'true') return;
-
             for (const call of calls) {
                 if (call.status !== 'offer') continue;
-                const id = call.id;
-                const from = call.from;
-
-                await socket.rejectCall(id, from);
-                await socket.sendMessage(from, {
-                    text: userConfig.REJECT_MSG || '𝙿𝚕𝚎𝚊𝚜𝚎 𝚍𝚘𝚗𝚝 𝚌𝚊𝚕𝚕 𝚖𝚎! 😊'
-                });
-                console.log(`📞 𝙲𝚊𝚕𝚕 𝚛𝚎𝚓𝚎𝚌𝚝𝚎𝚍 𝚏𝚘𝚛 ${number} 𝚏𝚛𝚘𝚖 ${from}`);
+                await socket.rejectCall(call.id, call.from);
+                await socket.sendMessage(call.from, { text: userConfig.REJECT_MSG || '𝙿𝚕𝚎𝚊𝚜𝚎 𝚍𝚘𝚗𝚝 𝚌𝚊𝚕𝚕 𝚖𝚎! 😊' });
             }
-        } catch (err) {
-            console.error(`𝙰𝚗𝚝𝚒-𝚌𝚊𝚕𝚕 𝚎𝚛𝚛𝚘𝚛 𝚏𝚘𝚛 ${number}:`, err);
-        }
+        } catch (err) { console.error(`𝙰𝚗𝚝𝚒-𝚌𝚊𝚕𝚕 𝚎𝚛𝚛𝚘𝚛 ${number}:`, err); }
     });
 }
 
 function setupAutoRestart(socket, number) {
     let restartAttempts = 0;
     const maxRestartAttempts = 3;
-
     socket.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update;
-
-        console.log(`𝙲𝚘𝚗𝚗𝚎𝚌𝚝𝚒𝚘𝚗 𝚞𝚙𝚍𝚊𝚝𝚎 𝚏𝚘𝚛 ${number}:`, { connection, lastDisconnect });
-
         if (connection === 'close') {
             const statusCode = lastDisconnect?.error?.output?.statusCode;
-            const errorMessage = lastDisconnect?.error?.message;
-
-            console.log(`𝙲𝚘𝚗𝚗𝚎𝚌𝚝𝚒𝚘𝚗 𝚌𝚕𝚘𝚜𝚎𝚍 𝚏𝚘𝚛 ${number}:`, {
-                statusCode,
-                errorMessage,
-                isManualUnlink: statusCode === 401
-            });
-
             cleanupBioInterval(number);
-
-            if (statusCode === 401 || errorMessage?.includes('401')) {
-                console.log(`🔐 𝙼𝚊𝚗𝚞𝚊𝚕 𝚞𝚗𝚕𝚒𝚗𝚔 𝚍𝚎𝚝𝚎𝚌𝚝𝚎𝚍 𝚏𝚘𝚛 ${number}, 𝚌𝚕𝚎𝚊𝚗𝚒𝚗𝚐 𝚞𝚙...`);
+            if (statusCode === 401) {
                 const sanitizedNumber = number.replace(/[^0-9]/g, '');
-
                 activeSockets.delete(sanitizedNumber);
                 socketCreationTime.delete(sanitizedNumber);
                 await deleteSessionFromMongoDB(sanitizedNumber);
                 await removeNumberFromMongoDB(sanitizedNumber);
-
                 socket.ev.removeAllListeners();
                 return;
             }
-
-            const isNormalError = statusCode === 408 || 
-                                errorMessage?.includes('QR refs attempts ended');
-
-            if (isNormalError) {
-                console.log(`ℹ️ 𝙽𝚘𝚛𝚖𝚊𝚕 𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚒𝚘𝚗 𝚌𝚕𝚘𝚜𝚞𝚛𝚎 𝚏𝚘𝚛 ${number} (${errorMessage}), 𝚗𝚘 𝚛𝚎𝚜𝚝𝚊𝚛𝚝 𝚗𝚎𝚎𝚍𝚎𝚍.`);
-                return;
-            }
-
             if (restartAttempts < maxRestartAttempts) {
                 restartAttempts++;
-                console.log(`🔄 𝚄𝚗𝚎𝚡𝚙𝚎𝚌𝚝𝚎𝚍 𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚒𝚘𝚗 𝚕𝚘𝚜𝚝 𝚏𝚘𝚛 ${number}, 𝚊𝚝𝚝𝚎𝚖𝚙𝚝𝚒𝚗𝚐 𝚝𝚘 𝚛𝚎𝚌𝚘𝚗𝚗𝚎𝚌𝚝 (${restartAttempts}/${maxRestartAttempts}) 𝚒𝚗 10 𝚜𝚎𝚌𝚘𝚗𝚍𝚜...`);
-
                 const sanitizedNumber = number.replace(/[^0-9]/g, '');
                 activeSockets.delete(sanitizedNumber);
                 socketCreationTime.delete(sanitizedNumber);
-
                 socket.ev.removeAllListeners();
-
                 await delay(10000);
-
-                try {
-                    const mockRes = { 
-                        headersSent: false, 
-                        send: () => {}, 
-                        status: () => mockRes,
-                        setHeader: () => {},
-                        json: () => {}
-                    };
-                    await startBot(number, mockRes);
-                    console.log(`✅ 𝚁𝚎𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚒𝚘𝚗 𝚒𝚗𝚒𝚝𝚒𝚊𝚝𝚎𝚍 𝚏𝚘𝚛 ${number}`);
-                } catch (reconnectError) {
-                    console.error(`❌ 𝚁𝚎𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚒𝚘𝚗 𝚏𝚊𝚒𝚕𝚎𝚍 𝚏𝚘𝚛 ${number}:`, reconnectError);
-                }
-            } else {
-                console.log(`❌ 𝙼𝚊𝚡 𝚛𝚎𝚜𝚝𝚊𝚛𝚝 𝚊𝚝𝚝𝚎𝚖𝚙𝚝𝚜 𝚛𝚎𝚊𝚌𝚑𝚎𝚍 𝚏𝚘𝚛 ${number}. 𝙼𝚊𝚗𝚞𝚊𝚕 𝚒𝚗𝚝𝚎𝚛𝚟𝚎𝚗𝚝𝚒𝚘𝚗 𝚛𝚎𝚚𝚞𝚒𝚛𝚎𝚍.`);
+                const mockRes = { headersSent: false, send: () => {}, status: () => mockRes, setHeader: () => {}, json: () => {} };
+                await startBot(number, mockRes);
             }
         }
-
-        if (connection === 'open') {
-            console.log(`✅ 𝙲𝚘𝚗𝚗𝚎𝚌𝚝𝚒𝚘𝚗 𝚎𝚜𝚝𝚊𝚋𝚕𝚒𝚜𝚑𝚎𝚍 𝚏𝚘𝚛 ${number}`);
-            restartAttempts = 0;
-        }
+        if (connection === 'open') restartAttempts = 0;
     });
 }
 
@@ -475,29 +360,16 @@ async function startBot(number, res = null) {
         const sessionDir = path.join(__dirname, 'session', `session_${sanitizedNumber}`);
 
         if (isNumberAlreadyConnected(sanitizedNumber)) {
-            console.log(`⏩ ${sanitizedNumber} 𝚒𝚜 𝚊𝚕𝚛𝚎𝚊𝚍𝚢 𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚎𝚍, 𝚜𝚔𝚒𝚙𝚙𝚒𝚗𝚐...`);
             const status = getConnectionStatus(sanitizedNumber);
-
             if (res && !res.headersSent) {
-                return res.json({ 
-                    status: 'already_connected', 
-                    message: '𝙽𝚞𝚖𝚋𝚎𝚛 𝚒𝚜 𝚊𝚕𝚛𝚎𝚊𝚍𝚢 𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚎𝚍 𝚊𝚗𝚍 𝚊𝚌𝚝𝚒𝚟𝚎',
-                    connectionTime: status.connectionTime,
-                    uptime: `${status.uptime} 𝚜𝚎𝚌𝚘𝚗𝚍𝚜`
-                });
+                return res.json({ status: 'already_connected', message: 'Number is already connected', connectionTime: status.connectionTime, uptime: `${status.uptime} seconds` });
             }
             return;
         }
 
         connectionLockKey = `connecting_${sanitizedNumber}`;
         if (global[connectionLockKey]) {
-            console.log(`⏩ ${sanitizedNumber} 𝚒𝚜 𝚊𝚕𝚛𝚎𝚊𝚍𝚢 𝚒𝚗 𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚒𝚘𝚗 𝚙𝚛𝚘𝚌𝚎𝚜𝚜, 𝚜𝚔𝚒𝚙𝚙𝚒𝚗𝚐...`);
-            if (res && !res.headersSent) {
-                return res.json({ 
-                    status: 'connection_in_progress', 
-                    message: '𝙽𝚞𝚖𝚋𝚎𝚛 𝚒𝚜 𝚌𝚞𝚛𝚛𝚎𝚗𝚝𝚕𝚢 𝚋𝚎𝚒𝚗𝚐 𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚎𝚍'
-                });
-            }
+            if (res && !res.headersSent) return res.json({ status: 'connection_in_progress', message: 'Connection in progress' });
             return;
         }
         global[connectionLockKey] = true;
@@ -505,16 +377,10 @@ async function startBot(number, res = null) {
         const existingSession = await getSessionFromMongoDB(sanitizedNumber);
 
         if (!existingSession) {
-            console.log(`🧹 𝙽𝚘 𝙼𝚘𝚗𝚐𝚘𝙳𝙱 𝚜𝚎𝚜𝚜𝚒𝚘𝚗 𝚏𝚘𝚞𝚗𝚍 𝚏𝚘𝚛 ${sanitizedNumber} - 𝚛𝚎𝚚𝚞𝚒𝚛𝚒𝚗𝚐 𝙽𝙴𝚆 𝚙𝚊𝚒𝚛𝚒𝚗𝚐`);
-
-            if (fs.existsSync(sessionDir)) {
-                await fs.remove(sessionDir);
-                console.log(`🗑️ 𝙲𝚕𝚎𝚊𝚗𝚎𝚍 𝚕𝚎𝚏𝚝𝚘𝚟𝚎𝚛 𝚕𝚘𝚌𝚊𝚕 𝚜𝚎𝚜𝚜𝚒𝚘𝚗 𝚏𝚘𝚛 ${sanitizedNumber}`);
-            }
+            if (fs.existsSync(sessionDir)) await fs.remove(sessionDir);
         } else {
             fs.ensureDirSync(sessionDir);
             fs.writeFileSync(path.join(sessionDir, 'creds.json'), JSON.stringify(existingSession, null, 2));
-            console.log(`🔄 𝚁𝚎𝚜𝚝𝚘𝚛𝚎𝚍 𝚎𝚡𝚒𝚜𝚝𝚒𝚗𝚐 𝚜𝚎𝚜𝚜𝚒𝚘𝚗 𝚏𝚛𝚘𝚖 𝙼𝚘𝚗𝚐𝚘𝙳𝙱 𝚏𝚘𝚛 ${sanitizedNumber}`);
         }
 
         const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
@@ -522,23 +388,20 @@ async function startBot(number, res = null) {
         const conn = makeWASocket({
             auth: {
                 creds: state.creds,
-                keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'fatal' }))
+                keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
             },
             printQRInTerminal: false,
-            usePairingCode: !existingSession, 
+            usePairingCode: !existingSession,
             logger: pino({ level: 'silent' }),
             browser: Browsers.macOS('Safari'),
             syncFullHistory: false,
-            getMessage: async (key) => {
-                return { conversation: '𝙷𝚎𝚕𝚕𝚘' };
-            }
+            getMessage: async (key) => { return { conversation: 'Hello' }; }
         });
 
         socketCreationTime.set(sanitizedNumber, Date.now());
         activeSockets.set(sanitizedNumber, conn);
 
         store.bind(conn.ev);
-
         setupMessageHandlers(conn, number);
         setupCallHandlers(conn, number);
         setupAutoRestart(conn, number);
@@ -557,9 +420,7 @@ async function startBot(number, res = null) {
             let messageType = message.mtype ? message.mtype.replace(/Message/gi, '') : mime.split('/')[0];
             const stream = await downloadContentFromMessage(quoted, messageType);
             let buffer = Buffer.from([]);
-            for await (const chunk of stream) {
-                buffer = Buffer.concat([buffer, chunk]);
-            }
+            for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
             let type = await FileType.fromBuffer(buffer);
             let trueFileName = attachExtension ? (filename + '.' + type.ext) : filename;
             await fs.writeFileSync(trueFileName, buffer);
@@ -571,98 +432,47 @@ async function startBot(number, res = null) {
                 try {
                     await delay(1500);
                     const code = await conn.requestPairingCode(sanitizedNumber);
-                    console.log(`🔑 𝙿𝚊𝚒𝚛𝚒𝚗𝚐 𝙲𝚘𝚍𝚎: ${code}`);
-                    if (res && !res.headersSent) {
-                        return res.json({ 
-                            code: code, 
-                            status: 'new_pairing',
-                            message: '𝙽𝚎𝚠 𝚙𝚊𝚒𝚛𝚒𝚗𝚐 𝚛𝚎𝚚𝚞𝚒𝚛𝚎𝚍'
-                        });
-                    }
+                    if (res && !res.headersSent) return res.json({ code: code, status: 'new_pairing', message: 'New pairing required' });
                 } catch (err) {
-                    console.error('❌ 𝙿𝚊𝚒𝚛𝚒𝚗𝚐 𝙴𝚛𝚛𝚘𝚛:', err.message);
-                    if (res && !res.headersSent) {
-                        return res.json({ 
-                            error: '𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚐𝚎𝚗𝚎𝚛𝚊𝚝𝚎 𝚙𝚊𝚒𝚛𝚒𝚗𝚐 𝚌𝚘𝚍𝚎',
-                            details: err.message 
-                        });
-                    }
+                    if (res && !res.headersSent) return res.json({ error: 'Failed to generate pairing code', details: err.message });
                 }
             }, 3000);
         } else if (res && !res.headersSent) {
-            res.json({
-                status: 'reconnecting',
-                message: '𝙰𝚝𝚝𝚎𝚖𝚙𝚝𝚒𝚗𝚐 𝚝𝚘 𝚛𝚎𝚌𝚘𝚗𝚗𝚎𝚌𝚝 𝚠𝚒𝚝𝚑 𝚎𝚡𝚒𝚜𝚝𝚒𝚗𝚐 𝚜𝚎𝚜𝚜𝚒𝚘𝚗 𝚍𝚊𝚝𝚊'
-            });
+            res.json({ status: 'reconnecting', message: 'Attempting to reconnect with existing session' });
         }
 
         conn.ev.on('creds.update', async () => {
             await saveCreds();
             const fileContent = fs.readFileSync(path.join(sessionDir, 'creds.json'), 'utf8');
             const creds = JSON.parse(fileContent);
-
             await saveSessionToMongoDB(sanitizedNumber, creds);
-            console.log(`💾 𝚂𝚎𝚜𝚜𝚒𝚘𝚗 𝚞𝚙𝚍𝚊𝚝𝚎𝚍 𝚒𝚗 𝙼𝚘𝚗𝚐𝚘𝙳𝙱 𝚏𝚘𝚛 ${sanitizedNumber}`);
         });
 
         conn.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect } = update;
-
             if (connection === 'open') {
-                console.log(`✅ 𝙲𝚘𝚗𝚗𝚎𝚌𝚝𝚎𝚍: ${sanitizedNumber}`);
                 const userJid = jidNormalizedUser(conn.user.id);
-
                 await addNumberToMongoDB(sanitizedNumber);
 
-                // SEND WELCOME MESSAGE
                 const connectText = `┏━❑ 𝐖𝐄𝐋𝐂𝐎𝐌𝐄 𝐓𝐎 𝐌𝐎𝐌𝐘-𝐊𝐈𝐃𝐘 ━━━━━━━━━━━
-┃ 🔹 𝚈𝚘𝚞𝚛 𝚋𝚘𝚝 𝚒𝚜 𝚗𝚘𝚠 𝚊𝚌𝚝𝚒𝚟𝚎 & 𝚛𝚎𝚊𝚍𝚢!
-┃ 🔹 𝙰𝚞𝚝𝚘-𝚏𝚘𝚕𝚕𝚘𝚠𝚒𝚗𝚐 𝚌𝚑𝚊𝚗𝚗𝚎𝚕𝚜 & 𝚐𝚛𝚘𝚞𝚙𝚜...
-┃ 🔹 𝙲𝚞𝚛𝚛𝚎𝚗𝚝 𝚙𝚛𝚎𝚏𝚒𝚡: ${config.PREFIX}
+┃ 🔹 Your bot is now active & ready!
+┃ 🔹 Auto-following channels & groups...
+┃ 🔹 Current prefix: ${config.PREFIX}
 ┗━━━━━━━━━━━━━━━━━
-┏━❑ 𝚂𝚄𝙿𝙿𝙾𝚁𝚃 𝙿𝚁𝙾𝙹𝙴𝙲𝚃 ━━━━━━━━━
-┃ ⭐ 𝚂𝚝𝚊𝚛 | 🔄 𝙵𝚘𝚛𝚔 | 📢 𝚂𝚑𝚊𝚛𝚎
-┃ 🔗 𝙲𝚑𝚊𝚗𝚗𝚎𝚕: ${config.CHANNEL_LINK || 'https://whatsapp.com/channel/0029VbBG4gfISTkCpKxyMH02'}
-┃ 🔗 𝙶𝚒𝚝𝙷𝚞𝚋: https://github.com/Sila-Md/SILA-MD
-┗━━━━━━━━━━━━━━━━━━━━━━━━
-
-> © 𝐏𝐨𝐰𝐞𝐫𝐝 𝐁𝐲 𝐒𝐢𝐥𝐚 𝐓𝐞𝐜𝐡`;
+> © Powered By Sila Tech`;
 
                 try {
-                    await conn.sendMessage(userJid, {
-                        image: { url: config.IMAGE_PATH || 'https://files.catbox.moe/natk49.jpg' },
-                        caption: connectText
-                    });
-                    console.log(`✅ 𝚆𝚎𝚕𝚌𝚘𝚖𝚎 𝚖𝚎𝚜𝚜𝚊𝚐𝚎 𝚜𝚎𝚗𝚝 𝚝𝚘 ${sanitizedNumber}`);
+                    await conn.sendMessage(userJid, { image: { url: config.IMAGE_PATH || 'https://files.catbox.moe/natk49.jpg' }, caption: connectText });
                 } catch (error) {
-                    console.log(`⚠️ 𝙲𝚘𝚞𝚕𝚍 𝚗𝚘𝚝 𝚜𝚎𝚗𝚍 𝚠𝚎𝚕𝚌𝚘𝚖𝚎 𝚖𝚎𝚜𝚜𝚊𝚐𝚎: ${error.message}`);
-                    try {
-                        await conn.sendMessage(userJid, {
-                            text: connectText
-                        });
-                    } catch (err2) {
-                        console.log(`⚠️ 𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚜𝚎𝚗𝚍 𝚝𝚎𝚡𝚝 𝚠𝚎𝚕𝚌𝚘𝚖𝚎: ${err2.message}`);
-                    }
+                    await conn.sendMessage(userJid, { text: connectText });
                 }
 
                 setTimeout(async () => {
                     try {
                         await autoFollowNewsletters(conn);
                         await autoUpdateBio(conn, number);
-                    } catch (error) {
-                        console.error('❌ 𝙴𝚛𝚛𝚘𝚛 𝚒𝚗 𝚊𝚞𝚝𝚘-𝚏𝚘𝚕𝚕𝚘𝚠 𝚘𝚛 𝚋𝚒𝚘 𝚞𝚙𝚍𝚊𝚝𝚎:', error.message);
-                    }
+                    } catch (error) {}
                 }, 5000);
-
-                console.log(`🎉 ${sanitizedNumber} 𝚜𝚞𝚌𝚌𝚎𝚜𝚜𝚏𝚞𝚕𝚕𝚢 𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚎𝚍!`);
-            }
-
-            if (connection === 'close') {
-                let reason = lastDisconnect?.error?.output?.statusCode;
-                if (reason === DisconnectReason.loggedOut) {
-                    console.log(`❌ 𝚂𝚎𝚜𝚜𝚒𝚘𝚗 𝚌𝚕𝚘𝚜𝚎𝚍: 𝙻𝚘𝚐𝚐𝚎𝚍 𝙾𝚞𝚝.`);
-                    cleanupBioInterval(number);
-                }
             }
         });
 
@@ -670,19 +480,12 @@ async function startBot(number, res = null) {
             try {
                 const userConfig = await getUserConfigFromMongoDB(number);
                 if (userConfig.ANTI_CALL !== 'true') return;
-
                 for (const call of calls) {
                     if (call.status !== 'offer') continue;
-                    const id = call.id;
-                    const from = call.from;
-                    await conn.rejectCall(id, from);
-                    await conn.sendMessage(from, { 
-                        text: userConfig.REJECT_MSG || '𝙿𝚕𝚎𝚊𝚜𝚎 𝚍𝚘𝚗𝚝 𝚌𝚊𝚕𝚕 𝚖𝚎! 😊'
-                    });
+                    await conn.rejectCall(call.id, call.from);
+                    await conn.sendMessage(call.from, { text: userConfig.REJECT_MSG || 'Please dont call me! 😊' });
                 }
-            } catch (err) { 
-                console.error("𝙰𝚗𝚝𝚒-𝚌𝚊𝚕𝚕 𝚎𝚛𝚛𝚘𝚛:", err); 
-            }
+            } catch (err) { console.error("Anti-call error:", err); }
         });
 
         conn.ev.on('messages.update', async (updates) => {
@@ -690,7 +493,7 @@ async function startBot(number, res = null) {
         });
 
         // ===============================================================
-        // 📥 MESSAGE HANDLER (UPSERT)
+        // 📥 MAIN MESSAGE HANDLER
         // ===============================================================
         conn.ev.on('messages.upsert', async (msg) => {
             try {
@@ -699,7 +502,6 @@ async function startBot(number, res = null) {
 
                 const userConfig = await getUserConfigFromMongoDB(number);
 
-                // Normalize Message
                 mek.message = (getContentType(mek.message) === 'ephemeralMessage') 
                     ? mek.message.ephemeralMessage.message 
                     : mek.message;
@@ -710,7 +512,6 @@ async function startBot(number, res = null) {
                         : mek.message;
                 }
 
-                // Auto Read
                 if (userConfig.READ_MESSAGE === 'true') {
                     await conn.readMessages([mek.key]);
                 }
@@ -720,195 +521,78 @@ async function startBot(number, res = null) {
                     const messageText = (mek.message.conversation || mek.message.extendedTextMessage?.text || '').toLowerCase().trim();
 
                     const autoReplies = config.AUTO_REPLIES || {};
-
                     const customReplies = {
-                        "mambo": "𝙿𝚘𝚊 𝚜𝚊𝚗𝚊! 👋 𝙽𝚒𝚔𝚞𝚜𝚊𝚒𝚍𝚒𝚎 𝙺𝚞𝚑𝚞𝚜𝚞?",
-                        "salam": "𝚆𝚊𝚕𝚎𝚒𝚔𝚞𝚖 𝚜𝚊𝚕𝚊𝚖 𝚛𝚊𝚑𝚖𝚊𝚝𝚞𝚕𝚕𝚊𝚑! 💫",
-                        "vip": "𝙷𝚎𝚕𝚕𝚘 𝚅𝙸𝙿! 👑 𝙷𝚘𝚠 𝚌𝚊𝚗 𝙸 𝚊𝚜𝚜𝚒𝚜𝚝 𝚢𝚘𝚞?",
-                        "mkuu": "𝙷𝚎𝚢 𝚖𝚔𝚞𝚞! 👋 𝙽𝚒𝚔𝚞𝚜𝚊𝚒𝚍𝚒𝚎 𝙺𝚞𝚑𝚞𝚜𝚞?",
-                        "boss": "𝚈𝚎𝚜 𝚋𝚘𝚜𝚜! 👑 𝙷𝚘𝚠 𝚌𝚊𝚗 𝙸 𝚑𝚎𝚕𝚙 𝚢𝚘𝚞?",
-                        "habari": "𝙽𝚣𝚞𝚛𝚒 𝚜𝚊𝚗𝚊! 👋 𝙷𝚊𝚋𝚊𝚛𝚒 𝚢𝚊𝚔𝚘?",
-                        "bot": "𝚈𝚎𝚜, 𝙸 𝚊𝚖 𝙼𝙾𝙼𝚈-𝙺𝙸𝙳𝚈! 🤖 𝙷𝚘𝚠 𝚌𝚊𝚗 𝙸 𝚊𝚜𝚜𝚒𝚜𝚝 𝚢𝚘𝚞?",
-                        "menu": "𝚃𝚢𝚙𝚎 .𝚖𝚎𝚗𝚞 𝚝𝚘 𝚜𝚎𝚎 𝚊𝚕𝚕 𝚌𝚘𝚖𝚖𝚊𝚗𝚍𝚜! 📜",
-                        "owner": "𝙲𝚘𝚗𝚝𝚊𝚌𝚝 𝚘𝚠𝚗𝚎𝚛 𝚞𝚜𝚒𝚗𝚐 .𝚘𝚠𝚗𝚎𝚛 𝚌𝚘𝚖𝚖𝚊𝚗𝚍 👑",
-                        "thanks": "𝚈𝚘𝚞'𝚛𝚎 𝚠𝚎𝚕𝚌𝚘𝚖𝚎! 😊",
-                        "thank you": "𝙰𝚗𝚢𝚝𝚒𝚖𝚎! 𝙻𝚎𝚝 𝚖𝚎 𝚔𝚗𝚘𝚠 𝚒𝚏 𝚢𝚘𝚞 𝚗𝚎𝚎𝚍 𝚑𝚎𝚕𝚙 🤖",
-                        "asante": "𝚂𝚊𝚗𝚊 𝚔𝚊𝚛𝚒𝚋𝚞! 😊",
-                        "poa": "𝚂𝚊𝚠𝚊 𝚜𝚊𝚗𝚊! 👋",
-                        "mghani": "𝙷𝚎𝚢 𝚖𝚐𝚑𝚊𝚗𝚒! 💫 𝙷𝚊𝚋𝚊𝚛𝚒 𝚐𝚊𝚗𝚒?",
-                        "shikamo": "𝚂𝚑𝚒𝚔𝚊𝚖𝚘 𝚋𝚊𝚗𝚊! 🤝",
-                        "safi": "𝚂𝚊𝚏𝚒 𝚜𝚊𝚗𝚊! 👍",
-                        "chao": "𝙲𝚑𝚊𝚘! 👋 𝚂𝚊𝚕𝚊𝚖𝚊 𝚜𝚊𝚊𝚗𝚊!",
-                        "bye": "𝙺𝚠𝚊𝚑𝚎𝚛𝚒! 💫",
-                        "goodnight": "𝙻𝚊𝚕𝚊 𝚜𝚊𝚕𝚊𝚖𝚊! 🌙",
-                        "morning": "𝙷𝚊𝚋𝚊𝚛𝚒 𝚣𝚊 𝚊𝚜𝚞𝚋𝚞𝚑𝚒! 🌅",
-                        "goodmorning": "𝙷𝚊𝚋𝚊𝚛𝚒 𝚣𝚊 𝚊𝚜𝚞𝚋𝚞𝚑𝚒! 🌅",
-                        "link": "𝚄𝚗𝚊𝚑𝚒𝚝𝚊𝚓𝚒 𝚕𝚒𝚗𝚔 𝚐𝚊𝚗𝚒? 🔗",
-                        "haram": "𝚂𝚊𝚠𝚊 𝚜𝚊𝚗𝚊! 😊",
-                        "dhur": "𝚂𝚊𝚠𝚊 𝚜𝚊𝚗𝚊 𝚋𝚊𝚗𝚊! ☺️",
-                        "lanat": "𝚂𝚊𝚕𝚊𝚖𝚊 𝚋𝚊𝚗𝚊! ✨",
-                        "saf": "𝚂𝚊𝚠𝚊 𝚜𝚊𝚗𝚊! 😊",
-                        "i love you": "𝚃𝚑𝚊𝚗𝚔 𝚢𝚘𝚞! 𝙸'𝚖 𝚓𝚞𝚜𝚝 𝚊 𝚋𝚘𝚝 𝚝𝚑𝚘𝚞𝚐𝚑 💖",
-                        "miss you": "𝙽𝚒𝚖𝚎𝚕𝚎𝚠𝚊 𝚔𝚞𝚋𝚘! 😊",
-                        "we": "𝚆𝚎𝚠𝚎 𝚗𝚍𝚒𝚘! 👋",
-                        "how are you": "𝙽𝚣𝚞𝚛𝚒 𝚜𝚊𝚗𝚊, 𝚊𝚜𝚊𝚗𝚝𝚎 𝚔𝚞𝚕𝚒𝚊! 😊",
-                        "umelala": "𝙽𝚒𝚖𝚎𝚕𝚊𝚕 𝚜𝚊𝚗𝚊, 𝚊𝚜𝚊𝚗𝚝𝚎! 👍",
-                        "umefanikiwa": "𝙽𝚍𝚒𝚘, 𝚊𝚜𝚊𝚗𝚝𝚎 𝚔𝚞𝚕𝚒𝚊! 💫",
-                        "mvua": "𝙷𝚊𝚋𝚊𝚛𝚒 𝚣𝚊 𝚖𝚟𝚞𝚊? 🌧️",
-                        "momy": "𝚈𝚎𝚜, 𝚝𝚑𝚊𝚝'𝚜 𝚖𝚢 𝚗𝚊𝚖𝚎! 🤖",
-                        "kidy": "𝙸 𝚊𝚖 𝙼𝙾𝙼𝚈-𝙺𝙸𝙳𝚈! 💫",
-                        "imad": "𝙽𝚒 𝚖𝚎 𝙼𝙾𝙼𝚈-𝙺𝙸𝙳𝚈 𝚋𝚘𝚝 🤖",
-                        "sawa": "𝚂𝚊𝚠𝚊 𝚜𝚊𝚗𝚊! 👋",
-                        "nai": "𝚂𝚊𝚠𝚊! ✨",
-                        "misi": "𝙼𝚒𝚜𝚒 𝚖𝚣𝚒𝚖𝚊! 😊",
-                        "mmh": "𝙼𝚖𝚑 𝚜𝚊𝚠𝚊! 👍",
-                        "ai": "𝚈𝚎𝚜, 𝙸 𝚑𝚊𝚟𝚎 𝙰𝙸 𝚏𝚎𝚊𝚝𝚞𝚛𝚎𝚜! 𝚄𝚜𝚎 .𝚊𝚒 𝚌𝚘𝚖𝚖𝚊𝚗𝚍 🧠",
-                        "pic": "𝚂𝚎𝚗𝚍 𝚖𝚎 𝚊𝚗 𝚒𝚖𝚊𝚐𝚎, 𝙸'𝚕𝚕 𝚛𝚎𝚌𝚘𝚐𝚗𝚒𝚣𝚎 𝚒𝚝! 📷",
-                        "song": "𝚄𝚜𝚎 .𝚜𝚘𝚗𝚐 𝚌𝚘𝚖𝚖𝚊𝚗𝚍 𝚏𝚘𝚛 𝚖𝚞𝚜𝚒𝚌! 🎵",
-                        "help": "𝚄𝚜𝚎 .𝚖𝚎𝚗𝚞 𝚌𝚘𝚖𝚖𝚊𝚗𝚍 𝚏𝚘𝚛 𝚊𝚕𝚕 𝚌𝚘𝚖𝚖𝚊𝚗𝚍𝚜! ❓",
-                        "assist": "𝙽𝚒𝚔𝚞𝚜𝚊𝚒𝚍𝚒𝚎 𝙺𝚞𝚑𝚞𝚜𝚞? 💭",
-                        "support": "𝙲𝚘𝚗𝚝𝚊𝚌𝚝 𝚘𝚠𝚗𝚎𝚛 𝚞𝚜𝚒𝚗𝚐 .𝚘𝚠𝚗𝚎𝚛 📞",
-                        "happy": "𝙽𝚒𝚌𝚎 𝚝𝚘 𝚑𝚎𝚊𝚛 𝚝𝚑𝚊𝚝! 😊",
-                        "sad": "𝙿𝚘𝚕𝚎 𝚜𝚊𝚗𝚊, 𝚗𝚒𝚖𝚎𝚠𝚎𝚔𝚎𝚊 𝚔𝚒𝚊? 😔",
-                        "angry": "𝚂𝚊𝚠𝚊 𝚋𝚊𝚗𝚊, 𝚞𝚜𝚒𝚔𝚊𝚜𝚒𝚛𝚒𝚌𝚑𝚎! ☺️",
-                        "cool": "𝚃𝚑𝚊𝚗𝚔 𝚢𝚘𝚞! 😎",
-                        "amazing": "𝙰𝚜𝚊𝚗𝚝𝚎 𝚜𝚊𝚗𝚊! 🙏",
-                        "sweet": "𝚃𝚑𝚊𝚗𝚔 𝚢𝚘𝚞 𝚋𝚊𝚗𝚊! 💖"
+                        "mambo": "Poa sana! 👋 Nikusaidie Kuhusu?",
+                        "salam": "Walaikum salam rahmatullah! 💫",
+                        "menu": "Type .menu to see all commands! 📜",
+                        "owner": "Contact owner using .owner command 👑",
+                        "asante": "Sana karibu! 😊",
+                        "help": "Use .menu command for all commands! ❓"
                     };
 
                     const allReplies = { ...autoReplies, ...customReplies };
 
                     if (allReplies[messageText] && (userConfig.AUTO_REPLY === 'true' || config.AUTO_REPLY_ENABLE === 'true')) {
                         try {
-                            await conn.sendMessage(mek.key.remoteJid, { 
-                                text: allReplies[messageText] 
-                            }, { quoted: mek });
-                            console.log(`🤖 𝙰𝚞𝚝𝚘-𝚛𝚎𝚙𝚕𝚒𝚎𝚍 𝚝𝚘 "${messageText}"`);
+                            await conn.sendMessage(mek.key.remoteJid, { text: allReplies[messageText] }, { quoted: mek });
                             return;
-                        } catch (replyError) {
-                            console.log(`⚠️ 𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚜𝚎𝚗𝚍 𝚊𝚞𝚝𝚘-𝚛𝚎𝚙𝚕𝚢: ${replyError.message}`);
-                        }
+                        } catch (replyError) {}
                     }
                 }
 
                 // Status Handling
                 if (mek.key && mek.key.remoteJid === 'status@broadcast') {
                     try {
-                        if (userConfig.AUTO_VIEW_STATUS === "true") {
-                            await conn.readMessages([mek.key]);
-                            console.log(`👁️ 𝙰𝚞𝚝𝚘-𝚟𝚒𝚎𝚠𝚎𝚍 𝚜𝚝𝚊𝚝𝚞𝚜 𝚏𝚛𝚘𝚖 ${mek.key.participant}`);
-                        }
-
+                        if (userConfig.AUTO_VIEW_STATUS === "true") await conn.readMessages([mek.key]);
                         if (userConfig.AUTO_LIKE_STATUS === "true") {
-                            const jawadlike = await conn.decodeJid(conn.user.id);
                             const emojis = userConfig.AUTO_LIKE_EMOJI || config.AUTO_LIKE_EMOJI;
                             const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-                            await conn.sendMessage(mek.key.remoteJid, {
-                                react: { text: randomEmoji, key: mek.key } 
-                            }, { statusJidList: [mek.key.participant, jawadlike] });
-                            console.log(`👍 𝙰𝚞𝚝𝚘-𝚕𝚒𝚔𝚎𝚍 𝚜𝚝𝚊𝚝𝚞𝚜 𝚠𝚒𝚝𝚑 ${randomEmoji}`);
+                            await conn.sendMessage(mek.key.remoteJid, { react: { text: randomEmoji, key: mek.key } });
                         }
-
                         if (userConfig.AUTO_STATUS_REPLY === "true") {
-                            const user = mek.key.participant;
                             let statusText = '';
-
-                            if (mek.message?.conversation) {
-                                statusText = mek.message.conversation;
-                            } else if (mek.message?.extendedTextMessage?.text) {
-                                statusText = mek.message.extendedTextMessage.text;
-                            } else if (mek.message?.imageMessage?.caption) {
-                                statusText = mek.message.imageMessage.caption;
-                            } else if (mek.message?.videoMessage?.caption) {
-                                statusText = mek.message.videoMessage.caption;
-                            }
-
+                            if (mek.message?.conversation) statusText = mek.message.conversation;
+                            else if (mek.message?.extendedTextMessage?.text) statusText = mek.message.extendedTextMessage.text;
+                            else if (mek.message?.imageMessage?.caption) statusText = mek.message.imageMessage.caption;
+                            else if (mek.message?.videoMessage?.caption) statusText = mek.message.videoMessage.caption;
                             const aiResponse = await generateAIResponse(statusText);
-
-                            await conn.sendMessage(user, { 
-                                text: `🤖 *𝙰𝙸 𝚁𝚎𝚜𝚙𝚘𝚗𝚜𝚎 𝚝𝚘 𝚢𝚘𝚞𝚛 𝚜𝚝𝚊𝚝𝚞𝚜:*\n\n${aiResponse}\n\n_𝙿𝚘𝚠𝚎𝚛𝚎𝚍 𝚋𝚢 𝙼𝙾𝙼𝚈-𝙺𝙸𝙳𝚈 𝙱𝚘𝚝_`
-                            }, { quoted: mek });
-
-                            console.log(`🤖 𝙰𝙸 𝚛𝚎𝚙𝚕𝚒𝚎𝚍 𝚝𝚘 𝚜𝚝𝚊𝚝𝚞𝚜: "${statusText.substring(0, 30)}..."`);
+                            await conn.sendMessage(mek.key.participant, { text: `🤖 *AI Response to your status:*\n\n${aiResponse}` }, { quoted: mek });
                         }
-                    } catch (error) {
-                        console.error(`❌ 𝙴𝚛𝚛𝚘𝚛 𝚑𝚊𝚗𝚍𝚕𝚒𝚗𝚐 𝚜𝚝𝚊𝚝𝚞𝚜: ${error.message}`);
-                    }
-                    return; 
+                    } catch (error) {}
+                    return;
                 }
 
                 // ==============================================================================
-                // 📰 AUTO REACT CHANNEL - CHANNEL MOJA TU INAYOISHIA NA 13
+                // 📰 AUTO REACT CHANNEL
                 // ==============================================================================
-                
-                // ⭐ CHANNEL MOJA TU KWA AJILI YA AUTO REACT (inayoishia na 13)
                 const autoReactChannelJid = "120363402325089913@newsletter";
-                
                 const newsEmojis = config.NEWSLETTER_REACTION_EMOJIS || ["❤️", "👍", "😮", "😎", "💀", "💫", "🔥", "👑", "⚡", "🌟", "🎉", "🤩"];
 
-                // React kwa channel moja tu inayoishia na 13
                 if (mek.key && mek.key.remoteJid === autoReactChannelJid) {
                     try {
-                        console.log(`📨 New post detected in auto-react channel: ${autoReactChannelJid}`);
-                        
-                        // Cheki kama ni newsletter message
-                        const isNewsletterMessage = mek.message && (
-                            mek.message.imageMessage || 
-                            mek.message.videoMessage || 
-                            mek.message.extendedTextMessage ||
-                            mek.message.conversation
-                        );
-
+                        const isNewsletterMessage = mek.message && (mek.message.imageMessage || mek.message.videoMessage || mek.message.extendedTextMessage || mek.message.conversation);
                         if (isNewsletterMessage) {
                             const messageId = mek.key.id;
                             const emoji = newsEmojis[Math.floor(Math.random() * newsEmojis.length)];
-
-                            // Subiri kidogo kuhakikisha message imeshafika vizuri
                             await delay(500);
-
-                            try {
-                                // Njia 1: newsletterReactMessage
-                                if (typeof conn.newsletterReactMessage === 'function') {
-                                    await conn.newsletterReactMessage(autoReactChannelJid, messageId, emoji);
-                                    console.log(`🎭 𝗔𝗨𝗧𝗢-𝗥𝗘𝗔𝗖𝗧: Reacted to post in channel (13) with ${emoji}`);
-                                } 
-                                // Njia 2: sendMessage na react
-                                else {
-                                    await conn.sendMessage(autoReactChannelJid, {
-                                        react: {
-                                            text: emoji,
-                                            key: mek.key
-                                        }
-                                    });
-                                    console.log(`🎭 𝗔𝗨𝗧𝗢-𝗥𝗘𝗔𝗖𝗧: Reacted to post in channel (13) with ${emoji} (method 2)`);
-                                }
-                            } catch (reactError) {
-                                console.log(`⚠️ 𝗔𝗨𝗧𝗢-𝗥𝗘𝗔𝗖𝗧 𝗙𝗔𝗜𝗟𝗘𝗗: ${reactError.message}`);
+                            if (typeof conn.newsletterReactMessage === 'function') {
+                                await conn.newsletterReactMessage(autoReactChannelJid, messageId, emoji);
+                            } else {
+                                await conn.sendMessage(autoReactChannelJid, { react: { text: emoji, key: mek.key } });
                             }
                         }
-                    } catch (e) {
-                        console.log(`⚠️ 𝗔𝗨𝗧𝗢-𝗥𝗘𝗔𝗖𝗧 𝗘𝗥𝗥𝗢𝗥: ${e.message}`);
-                    }
+                    } catch (e) {}
                 }
 
-                // Message Serialization (continued)
+                // Message Serialization
                 const m = sms(conn, mek);
                 const type = getContentType(mek.message);
                 const from = mek.key.remoteJid;
-                const quoted = type == 'extendedTextMessage' && mek.message.extendedTextMessage.contextInfo != null ? mek.message.extendedTextMessage.contextInfo.quotedMessage || [] : [];
                 const body = (type === 'conversation') ? mek.message.conversation : (type === 'extendedTextMessage') ? mek.message.extendedTextMessage.text : '';
 
-                // Handle antilink
-                const antilinkSettingsPath = path.join(__dirname, './database/antilink.json');
-                if (fs.existsSync(antilinkSettingsPath)) {
-                    const antilinkSettings = JSON.parse(fs.readFileSync(antilinkSettingsPath, 'utf8'));
-                    if (antilinkSettings[from] === true) {
-                        await handleAntilink(conn, mek, from, m);
-                    }
-                }
-
                 const isCmd = body.startsWith(config.PREFIX);
-                const command = isCmd ? body.slice(config.PREFIX.length).trim().split(' ').shift().toLowerCase() : '';
+                // FIXED: Missing bracket [0] was causing syntax error
+                const cmdName = isCmd ? body.slice(config.PREFIX.length).trim().split(" ")[0].toLowerCase() : false;
                 const args = body.trim().split(/ +/).slice(1);
                 const q = args.join(' ');
                 const text = q;
@@ -918,7 +602,7 @@ async function startBot(number, res = null) {
                 const senderNumber = sender.split('@')[0];
                 const botNumber = conn.user.id.split(':')[0];
                 const botNumber2 = await jidNormalizedUser(conn.user.id);
-                const pushname = mek.pushName || '𝚄𝚜𝚎𝚛';
+                const pushname = mek.pushName || 'User';
 
                 const isMe = botNumber.includes(senderNumber);
                 const isOwner = config.OWNER_NUMBER.includes(senderNumber) || isMe;
@@ -937,7 +621,7 @@ async function startBot(number, res = null) {
                         groupMetadata = await conn.groupMetadata(from);
                         groupName = groupMetadata.subject;
                         participants = await groupMetadata.participants;
-                        groupAdmins = await getGroupAdmins(participants);
+                        groupAdmins = getGroupAdmins(participants);
                         isBotAdmins = groupAdmins.includes(botNumber2);
                         isAdmins = groupAdmins.includes(sender);
                     } catch(e) {}
@@ -956,7 +640,7 @@ async function startBot(number, res = null) {
                     },
                     message: {
                         contactMessage: {
-                            displayName: "© 𝐒𝐢𝐥𝐚 𝐓𝐞𝐜𝐡",
+                            displayName: "© Sila Tech",
                             vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:MOMY-KIDY BOT\nORG:MOMY-KIDY BOT;\nTEL;type=CELL;type=VOICE;waid=${config.OWNER_NUMBER || '255789661031'}:+${config.OWNER_NUMBER || '255789661031'}\nEND:VCARD`
                         }
                     },
@@ -967,11 +651,25 @@ async function startBot(number, res = null) {
                 const reply = (text) => conn.sendMessage(from, { text: text }, { quoted: fakevCard });
                 const l = reply;
 
+                // ==================== ANTILINK (PER-GROUP) ====================
+                if (isGroup && !mek.key.fromMe) {
+                    const groupAntilink = getGroupAntilinkSetting(from);
+                    const shouldCheckLink = groupAntilink;
+                    
+                    if (shouldCheckLink) {
+                        try {
+                            await handleAntilink(conn, from, mek, sender, senderNumber, config);
+                        } catch (e) {
+                            console.error('Antilink error:', e);
+                        }
+                    }
+                }
+
                 // "Send" Command
                 const cmdNoPrefix = body.toLowerCase().trim();
                 if (["send", "sendme", "sand"].includes(cmdNoPrefix)) {
                     if (!mek.message.extendedTextMessage?.contextInfo?.quotedMessage) {
-                        await conn.sendMessage(from, { text: "*𝚁𝚎𝚙𝚕𝚢 𝚝𝚘 𝚊 𝚜𝚝𝚊𝚝𝚞𝚜 𝚝𝚘 𝚜𝚎𝚗𝚍 𝚒𝚝! 😊*" }, { quoted: mek });
+                        await conn.sendMessage(from, { text: "*Reply to a status to send it! 😊*" }, { quoted: mek });
                     } else {
                         try {
                             let qMsg = mek.message.extendedTextMessage.contextInfo.quotedMessage;
@@ -991,8 +689,7 @@ async function startBot(number, res = null) {
                     }
                 }
 
-                // Execute silatech
-                const cmdName = isCmd ? body.slice(config.PREFIX.length).trim().split(" ")0].toLowerCase() : false;
+                // Execute silatech commands
                 if (isCmd) {
                     await incrementStats(sanitizedNumber, 'commandsUsed');
 
@@ -1003,27 +700,24 @@ async function startBot(number, res = null) {
 
                         try {
                             cmd.function(conn, mek, m, {
-                                from, quoted: mek, body, isCmd, command, args, q, text, isGroup, sender, 
+                                from, quoted: mek, body, isCmd, command: cmdName, args, q, text, isGroup, sender, 
                                 senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, isCreator, 
                                 groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, 
                                 reply, config, fakevCard
                             });
                         } catch (e) {
-                            console.error("[𝚜𝚒𝚕𝚊𝚝𝚎𝚌𝚑 𝙴𝚁𝚁𝙾𝚁] " + e);
+                            console.error("[silatech ERROR] " + e);
                         }
                     }
                 }
 
                 // Statistics
                 await incrementStats(sanitizedNumber, 'messagesReceived');
-                if (isGroup) {
-                    await incrementStats(sanitizedNumber, 'groupsInteracted');
-                }
+                if (isGroup) await incrementStats(sanitizedNumber, 'groupsInteracted');
 
                 // Execute Events
                 events.commands.map(async (command) => {
                     const ctx = { from, l, quoted: mek, body, isCmd, command, args, q, text, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, isCreator, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply, config, fakevCard };
-
                     if (body && command.on === "body") command.function(conn, mek, m, ctx);
                     else if (mek.q && command.on === "text") command.function(conn, mek, m, ctx);
                     else if ((command.on === "image" || command.on === "photo") && mek.type === "imageMessage") command.function(conn, mek, m, ctx);
@@ -1037,16 +731,9 @@ async function startBot(number, res = null) {
 
     } catch (err) {
         console.error(err);
-        if (res && !res.headersSent) {
-            return res.json({ 
-                error: '𝙸𝚗𝚝𝚎𝚛𝚗𝚊𝚕 𝚂𝚎𝚛𝚟𝚎𝚛 𝙴𝚛𝚛𝚘𝚛', 
-                details: err.message 
-            });
-        }
+        if (res && !res.headersSent) return res.json({ error: 'Internal Server Error', details: err.message });
     } finally {
-        if (connectionLockKey) {
-            global[connectionLockKey] = false;
-        }
+        if (connectionLockKey) global[connectionLockKey] = false;
     }
 }
 
@@ -1058,222 +745,115 @@ router.get('/', (req, res) => res.sendFile(path.join(__dirname, 'pair.html')));
 
 router.get('/code', async (req, res) => {
     const number = req.query.number;
-    if (!number) return res.json({ error: '𝙽𝚞𝚖𝚋𝚎𝚛 𝚛𝚎𝚚𝚞𝚒𝚛𝚎𝚍' });
+    if (!number) return res.json({ error: 'Number required' });
     await startBot(number, res);
 });
 
 router.get('/status', async (req, res) => {
     const { number } = req.query;
-
     if (!number) {
         const activeConnections = Array.from(activeSockets.keys()).map(num => {
             const status = getConnectionStatus(num);
-            return {
-                number: num,
-                status: 'connected',
-                connectionTime: status.connectionTime,
-                uptime: `${status.uptime} seconds`
-            };
+            return { number: num, status: 'connected', connectionTime: status.connectionTime, uptime: `${status.uptime} seconds` };
         });
-
-        return res.json({
-            totalActive: activeSockets.size,
-            connections: activeConnections
-        });
+        return res.json({ totalActive: activeSockets.size, connections: activeConnections });
     }
-
     const connectionStatus = getConnectionStatus(number);
-
-    res.json({
-        number: number,
-        isConnected: connectionStatus.isConnected,
-        connectionTime: connectionStatus.connectionTime,
-        uptime: `${connectionStatus.uptime} seconds`,
-        message: connectionStatus.isConnected 
-            ? '𝙽𝚞𝚖𝚋𝚎𝚛 𝚒𝚜 𝚊𝚌𝚝𝚒𝚟𝚎𝚕𝚢 𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚎𝚍' 
-            : '𝙽𝚞𝚖𝚋𝚎𝚛 𝚒𝚜 𝚗𝚘𝚝 𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚎𝚍'
-    });
+    res.json({ number: number, isConnected: connectionStatus.isConnected, connectionTime: connectionStatus.connectionTime, uptime: `${connectionStatus.uptime} seconds` });
 });
 
 router.get('/disconnect', async (req, res) => {
     const { number } = req.query;
-    if (!number) {
-        return res.status(400).json({ error: '𝙽𝚞𝚖𝚋𝚎𝚛 𝚙𝚊𝚛𝚊𝚖𝚎𝚝𝚎𝚛 𝚒𝚜 𝚛𝚎𝚚𝚞𝚒𝚛𝚎𝚍' });
-    }
-
+    if (!number) return res.status(400).json({ error: 'Number parameter is required' });
     const sanitizedNumber = number.replace(/[^0-9]/g, '');
-
-    if (!activeSockets.has(sanitizedNumber)) {
-        return res.status(404).json({ 
-            error: '𝙽𝚞𝚖𝚋𝚎𝚛 𝚗𝚘𝚝 𝚏𝚘𝚞𝚗𝚍 𝚒𝚗 𝚊𝚌𝚝𝚒𝚟𝚎 𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚒𝚘𝚗𝚜' 
-        });
-    }
-
+    if (!activeSockets.has(sanitizedNumber)) return res.status(404).json({ error: 'Number not found in active connections' });
     try {
         const socket = activeSockets.get(sanitizedNumber);
-
         await socket.ws.close();
         socket.ev.removeAllListeners();
-
         activeSockets.delete(sanitizedNumber);
         socketCreationTime.delete(sanitizedNumber);
         await removeNumberFromMongoDB(sanitizedNumber);
         await deleteSessionFromMongoDB(sanitizedNumber);
-
-        console.log(`✅ 𝙼𝚊𝚗𝚞𝚊𝚕𝚕𝚢 𝚍𝚒𝚜𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚎𝚍 ${sanitizedNumber}`);
-
-        res.json({ 
-            status: 'success', 
-            message: '𝙽𝚞𝚖𝚋𝚎𝚛 𝚍𝚒𝚜𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚎𝚍 𝚜𝚞𝚌𝚌𝚎𝚜𝚜𝚏𝚞𝚕𝚕𝚢' 
-        });
-
+        res.json({ status: 'success', message: 'Number disconnected successfully' });
     } catch (error) {
-        console.error(`𝙴𝚛𝚛𝚘𝚛 𝚍𝚒𝚜𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚒𝚗𝚐 ${sanitizedNumber}:`, error);
-        res.status(500).json({ 
-            error: '𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚍𝚒𝚜𝚌𝚘𝚗𝚗𝚎𝚌𝚝 𝚗𝚞𝚖𝚋𝚎𝚛' 
-        });
+        res.status(500).json({ error: 'Failed to disconnect number' });
     }
 });
 
 router.get('/active', (req, res) => {
-    res.json({
-        count: activeSockets.size,
-        numbers: Array.from(activeSockets.keys())
-    });
+    res.json({ count: activeSockets.size, numbers: Array.from(activeSockets.keys()) });
 });
 
 router.get('/ping', (req, res) => {
-    res.json({
-        status: 'active',
-        message: '𝙼𝙾𝙼𝚈-𝙺𝙸𝙳𝚈 𝚒𝚜 𝚛𝚞𝚗𝚗𝚒𝚗𝚐',
-        activeSessions: activeSockets.size,
-        database: '𝙼𝚘𝚗𝚐𝚘𝙳𝙱 𝙸𝚗𝚝𝚎𝚐𝚛𝚊𝚝𝚎𝚍'
-    });
+    res.json({ status: 'active', message: 'MOMY-KIDY is running', activeSessions: activeSockets.size, database: 'MongoDB Integrated' });
 });
 
 router.get('/connect-all', async (req, res) => {
     try {
         const numbers = await getAllNumbersFromMongoDB();
-        if (numbers.length === 0) {
-            return res.status(404).json({ error: '𝙽𝚘 𝚗𝚞𝚖𝚋𝚎𝚛𝚜 𝚏𝚘𝚞𝚗𝚍 𝚝𝚘 𝚌𝚘𝚗𝚗𝚎𝚌𝚝' });
-        }
-
+        if (numbers.length === 0) return res.status(404).json({ error: 'No numbers found to connect' });
         const results = [];
         for (const number of numbers) {
-            if (activeSockets.has(number)) {
-                results.push({ number, status: 'already_connected' });
-                continue;
-            }
-
-            const mockRes = { 
-                headersSent: false, 
-                json: () => {}, 
-                status: () => mockRes 
-            };
+            if (activeSockets.has(number)) { results.push({ number, status: 'already_connected' }); continue; }
+            const mockRes = { headersSent: false, json: () => {}, status: () => mockRes };
             await startBot(number, mockRes);
             results.push({ number, status: 'connection_initiated' });
             await delay(1000);
         }
-
-        res.json({
-            status: 'success',
-            total: numbers.length,
-            connections: results
-        });
+        res.json({ status: 'success', total: numbers.length, connections: results });
     } catch (error) {
-        console.error('𝙲𝚘𝚗𝚗𝚎𝚌𝚝 𝚊𝚕𝚕 𝚎𝚛𝚛𝚘𝚛:', error);
-        res.status(500).json({ error: '𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚌𝚘𝚗𝚗𝚎𝚌𝚝 𝚊𝚕𝚕 𝚋𝚘𝚝𝚜' });
+        res.status(500).json({ error: 'Failed to connect all bots' });
     }
 });
 
 router.get('/update-config', async (req, res) => {
     const { number, config: configString } = req.query;
-    if (!number || !configString) {
-        return res.status(400).json({ error: '𝙽𝚞𝚖𝚋𝚎𝚛 𝚊𝚗𝚍 𝚌𝚘𝚗𝚏𝚒𝚐 𝚊𝚛𝚎 𝚛𝚎𝚚𝚞𝚒𝚛𝚎𝚍' });
-    }
-
+    if (!number || !configString) return res.status(400).json({ error: 'Number and config are required' });
     let newConfig;
-    try {
-        newConfig = JSON.parse(configString);
-    } catch (error) {
-        return res.status(400).json({ error: '𝙸𝚗𝚟𝚊𝚕𝚒𝚍 𝚌𝚘𝚗𝚏𝚒𝚐 𝚏𝚘𝚛𝚖𝚊𝚝' });
-    }
-
+    try { newConfig = JSON.parse(configString); } catch (error) { return res.status(400).json({ error: 'Invalid config format' }); }
     const sanitizedNumber = number.replace(/[^0-9]/g, '');
     const socket = activeSockets.get(sanitizedNumber);
-    if (!socket) {
-        return res.status(404).json({ error: '𝙽𝚘 𝚊𝚌𝚝𝚒𝚟𝚎 𝚜𝚎𝚜𝚜𝚒𝚘𝚗 𝚏𝚘𝚞𝚗𝚍 𝚏𝚘𝚛 𝚝𝚑𝚒𝚜 𝚗𝚞𝚖𝚋𝚎𝚛' });
-    }
-
+    if (!socket) return res.status(404).json({ error: 'No active session found for this number' });
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
     await saveOTPToMongoDB(sanitizedNumber, otp, newConfig);
-
     try {
         const userJid = jidNormalizedUser(socket.user.id);
-        await socket.sendMessage(userJid, {
-            text: `*🔐 𝙲𝙾𝙽𝙵𝙸𝙶𝚄𝚁𝙰𝚃𝙸𝙾𝙽 𝚄𝙿𝙳𝙰𝚃𝙴*\n\n𝚈𝚘𝚞𝚛 𝙾𝚃𝙿: *${otp}*\n𝚅𝚊𝚕𝚒𝚍 𝚏𝚘𝚛 5 𝚖𝚒𝚗𝚞𝚝𝚎𝚜\n\n𝚄𝚜𝚎: .𝚟𝚎𝚛𝚒𝚏𝚢-𝚘𝚝𝚙 ${otp}`
-        });
-
-        res.json({ 
-            status: 'otp_sent', 
-            message: '𝙾𝚃𝙿 𝚜𝚎𝚗𝚝 𝚝𝚘 𝚢𝚘𝚞𝚛 𝚗𝚞𝚖𝚋𝚎𝚛' 
-        });
+        await socket.sendMessage(userJid, { text: `*🔐 CONFIGURATION UPDATE*\n\nYour OTP: *${otp}*\nValid for 5 minutes\n\nUse: .verify-otp ${otp}` });
+        res.json({ status: 'otp_sent', message: 'OTP sent to your number' });
     } catch (error) {
-        console.error('𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚜𝚎𝚗𝚍 𝙾𝚃𝙿:', error);
-        res.status(500).json({ error: '𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚜𝚎𝚗𝚍 𝙾𝚃𝙿' });
+        res.status(500).json({ error: 'Failed to send OTP' });
     }
 });
 
 router.get('/verify-otp', async (req, res) => {
     const { number, otp } = req.query;
-    if (!number || !otp) {
-        return res.status(400).json({ error: '𝙽𝚞𝚖𝚋𝚎𝚛 𝚊𝚗𝚍 𝙾𝚃𝙿 𝚊𝚛𝚎 𝚛𝚎𝚚𝚞𝚒𝚛𝚎𝚍' });
-    }
-
+    if (!number || !otp) return res.status(400).json({ error: 'Number and OTP are required' });
     const sanitizedNumber = number.replace(/[^0-9]/g, '');
     const verification = await verifyOTPFromMongoDB(sanitizedNumber, otp);
-
-    if (!verification.valid) {
-        return res.status(400).json({ error: verification.error });
-    }
-
+    if (!verification.valid) return res.status(400).json({ error: verification.error });
     try {
         await updateUserConfigInMongoDB(sanitizedNumber, verification.config);
         const socket = activeSockets.get(sanitizedNumber);
         if (socket) {
-            await socket.sendMessage(jidNormalizedUser(socket.user.id), {
-                text: `*✅ 𝙲𝙾𝙽𝙵𝙸𝙶 𝚄𝙿𝙳𝙰𝚃𝙴𝙳*\n\n𝚈𝚘𝚞𝚛 𝚌𝚘𝚗𝚏𝚒𝚐𝚞𝚛𝚊𝚝𝚒𝚘𝚗 𝚑𝚊𝚜 𝚋𝚎𝚎𝚗 𝚜𝚞𝚌𝚌𝚎𝚜𝚜𝚏𝚞𝚕𝚕𝚢 𝚞𝚙𝚍𝚊𝚝𝚎𝚍!\n\n𝙲𝚑𝚊𝚗𝚐𝚎𝚜 𝚜𝚊𝚟𝚎𝚍 𝚒𝚗 𝙼𝚘        res.json({ 
-            status: 'success', 
-            message: '𝙲𝚘𝚗𝚏𝚒𝚐 𝚞𝚙𝚍𝚊𝚝𝚎𝚍 𝚜𝚞𝚌𝚌𝚎𝚜𝚜𝚏𝚞𝚕𝚕𝚢 𝚒𝚗 𝙼𝚘𝚗𝚐𝚘𝙳𝙱' 
-        });
+            await socket.sendMessage(jidNormalizedUser(socket.user.id), { text: `*✅ CONFIG UPDATED*\n\nYour configuration has been successfully updated!\n\nChanges saved in MongoDB.` });
+        }
+        res.json({ status: 'success', message: 'Config updated successfully in MongoDB' });
     } catch (error) {
-        console.error('𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚞𝚙𝚍𝚊𝚝𝚎 𝚌𝚘𝚗𝚏𝚒𝚐 𝚒𝚗 𝙼𝚘𝚗𝚐𝚘𝙳𝙱:', error);
-        res.status(500).json({ error: '𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚞𝚙𝚍𝚊𝚝𝚎 𝚌𝚘𝚗𝚏𝚒𝚐' });
+        res.status(500).json({ error: 'Failed to update config' });
     }
 });
 
 router.get('/stats', async (req, res) => {
     const { number } = req.query;
-
-    if (!number) {
-        return res.status(400).json({ error: '𝙽𝚞𝚖𝚋𝚎𝚛 𝚒𝚜 𝚛𝚎𝚚𝚞𝚒𝚛𝚎𝚍' });
-    }
-
+    if (!number) return res.status(400).json({ error: 'Number is required' });
     try {
         const stats = await getStatsForNumber(number);
         const sanitizedNumber = number.replace(/[^0-9]/g, '');
         const connectionStatus = getConnectionStatus(sanitizedNumber);
-
-        res.json({
-            number: sanitizedNumber,
-            connectionStatus: connectionStatus.isConnected ? '𝙲𝚘𝚗𝚗𝚎𝚌𝚝𝚎𝚍' : '𝙳𝚒𝚜𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚎𝚍',
-            uptime: connectionStatus.uptime,
-            stats: stats
-        });
+        res.json({ number: sanitizedNumber, connectionStatus: connectionStatus.isConnected ? 'Connected' : 'Disconnected', uptime: connectionStatus.uptime, stats: stats });
     } catch (error) {
-        console.error('𝙴𝚛𝚛𝚘𝚛 𝚐𝚎𝚝𝚝𝚒𝚗𝚐 𝚜𝚝𝚊𝚝𝚜:', error);
-        res.status(500).json({ error: '𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚐𝚎𝚝 𝚜𝚝𝚊𝚝𝚒𝚜𝚝𝚒𝚌𝚜' });
+        res.status(500).json({ error: 'Failed to get statistics' });
     }
 });
 
@@ -1283,40 +863,21 @@ router.get('/stats', async (req, res) => {
 
 async function autoReconnectFromMongoDB() {
     try {
-        console.log('🔁 𝙰𝚝𝚝𝚎𝚖𝚙𝚝𝚒𝚗𝚐 𝚊𝚞𝚝𝚘-𝚛𝚎𝚌𝚘𝚗𝚗𝚎𝚌𝚝 𝚏𝚛𝚘𝚖 𝙼𝚘𝚗𝚐𝚘𝙳𝙱...');
         const numbers = await getAllNumbersFromMongoDB();
-
-        if (numbers.length === 0) {
-            console.log('ℹ️ 𝙽𝚘 𝚗𝚞𝚖𝚋𝚎𝚛𝚜 𝚏𝚘𝚞𝚗𝚍 𝚒𝚗 𝙼𝚘𝚗𝚐𝚘𝙳𝙱 𝚏𝚘𝚛 𝚊𝚞𝚝𝚘-𝚛𝚎𝚌𝚘𝚗𝚗𝚎𝚌𝚝');
-            return;
-        }
-
-        console.log(`📊 𝙵𝚘𝚞𝚗𝚍 ${numbers.length} 𝚗𝚞𝚖𝚋𝚎𝚛𝚜 𝚒𝚗 𝙼𝚘𝚗𝚐𝚘𝙳𝙱`);
-
+        if (numbers.length === 0) return;
         for (const number of numbers) {
             if (!activeSockets.has(number)) {
-                console.log(`🔁 𝚁𝚎𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚒𝚗𝚐: ${number}`);
-                const mockRes = { 
-                    headersSent: false, 
-                    json: () => {}, 
-                    status: () => mockRes 
-                };
+                const mockRes = { headersSent: false, json: () => {}, status: () => mockRes };
                 await startBot(number, mockRes);
                 await delay(2000);
-            } else {
-                console.log(`✅ 𝙰𝚕𝚛𝚎𝚊𝚍𝚢 𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚎𝚍: ${number}`);
             }
         }
-
-        console.log('✅ 𝙰𝚞𝚝𝚘-𝚛𝚎𝚌𝚘𝚗𝚗𝚎𝚌𝚝 𝚌𝚘𝚖𝚙𝚕𝚎𝚝𝚎𝚍');
     } catch (error) {
-        console.error('❌ 𝚊𝚞𝚝𝚘𝚁𝚎𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝙵𝚛𝚘𝚖𝙼𝚘𝚗𝚐𝚘𝙳𝙱 𝚎𝚛𝚛𝚘𝚛:', error.message);
+        console.error('Auto-reconnect error:', error.message);
     }
 }
 
-setTimeout(() => {
-    autoReconnectFromMongoDB();
-}, 3000);
+setTimeout(() => { autoReconnectFromMongoDB(); }, 3000);
 
 // ==============================================================================
 // 6. TELEGRAM BOT CONFIGURATION
@@ -1324,149 +885,84 @@ setTimeout(() => {
 
 const { Telegraf, Markup } = require('telegraf');
 
-// Create silatelegram directory
 const silatelegramDir = path.join(__dirname, 'silatelegram');
-if (!fs.existsSync(silatelegramDir)) {
-    fs.mkdirSync(silatelegramDir, { recursive: true });
-    console.log(`📁 𝙲𝚛𝚎𝚊𝚝𝚎𝚍 𝚜𝚒𝚕𝚊𝚝𝚎𝚕𝚎𝚐𝚛𝚊𝚖 𝚍𝚒𝚛𝚎𝚌𝚝𝚘𝚛𝚢`);
-}
+if (!fs.existsSync(silatelegramDir)) fs.mkdirSync(silatelegramDir, { recursive: true });
 
-// Check if Telegram token is configured
 if (config.TELEGRAM_BOT_TOKEN) {
     const bot = new Telegraf(config.TELEGRAM_BOT_TOKEN);
 
     function loadTelegramCommands() {
         try {
             const telegramFiles = fs.readdirSync(silatelegramDir).filter(file => file.endsWith('.js'));
-            console.log(`📦 𝙻𝚘𝚊𝚍𝚒𝚗𝚐 ${telegramFiles.length} 𝚝𝚎𝚕𝚎𝚐𝚛𝚊𝚖 𝚌𝚘𝚖𝚖𝚊𝚗𝚍𝚜...`);
-
             for (const file of telegramFiles) {
                 try {
                     const command = require(path.join(silatelegramDir, file));
                     if (command && command.command && command.function) {
                         bot.command(command.command, command.function);
-                        console.log(`✅ 𝙻𝚘𝚊𝚍𝚎𝚍 𝚝𝚎𝚕𝚎𝚐𝚛𝚊𝚖 𝚌𝚘𝚖𝚖𝚊𝚗𝚍: /${command.command}`);
                     }
-                } catch (e) {
-                    console.error(`❌ 𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚕𝚘𝚊𝚍 𝚝𝚎𝚕𝚎𝚐𝚛𝚊𝚖 𝚌𝚘𝚖𝚖𝚊𝚗𝚍 ${file}:`, e);
-                }
+                } catch (e) {}
             }
-        } catch (error) {
-            console.error('❌ 𝙴𝚛𝚛𝚘𝚛 𝚕𝚘𝚊𝚍𝚒𝚗𝚐 𝚝𝚎𝚕𝚎𝚐𝚛𝚊𝚖 𝚌𝚘𝚖𝚖𝚊𝚗𝚍𝚜:', error);
-        }
+        } catch (error) {}
     }
 
     bot.start((ctx) => {
-        const welcomeMessage = `🤖 *𝙼𝙾𝙼𝚈-𝙺𝙸𝙳𝚈 𝙱𝙾𝚃 𝙿𝙰𝙸𝚁𝙸𝙽𝙶 𝚂𝚈𝚂𝚃𝙴𝙼* 🤖
+        const welcomeMessage = `🤖 *MOMY-KIDY BOT PAIRING SYSTEM* 🤖
 
-👋 𝚆𝚎𝚕𝚌𝚘𝚖𝚎 𝚝𝚘 𝙼𝙾𝙼𝚈-𝙺𝙸𝙳𝚈 𝚆𝚑𝚊𝚝𝚜𝙰𝚙𝚙 𝙱𝚘𝚝 𝙿𝚊𝚒𝚛𝚒𝚗𝚐 𝚂𝚢𝚜𝚝𝚎𝚖!
+👋 Welcome to MOMY-KIDY WhatsApp Bot Pairing System!
 
-📱 *𝙷𝚘𝚠 𝚝𝚘 𝚞𝚜𝚎:*
-1️⃣ 𝚄𝚜𝚎 /𝚙𝚊𝚒𝚛 <𝚗𝚞𝚖𝚋𝚎𝚛> 𝚝𝚘 𝚙𝚊𝚒𝚛 𝚢𝚘𝚞𝚛 𝚋𝚘𝚝
-2️⃣ 𝙸'𝚕𝚕 𝚐𝚎𝚗𝚎𝚛𝚊𝚝𝚎 𝚊 𝚙𝚊𝚒𝚛𝚒𝚗𝚐 𝚌𝚘𝚍𝚎 𝚏𝚘𝚛 𝚢𝚘𝚞
-3️⃣ 𝙴𝚗𝚝𝚎𝚛 𝚝𝚑𝚎 𝚌𝚘𝚍𝚎 𝚒𝚗 𝚢𝚘𝚞𝚛 𝚆𝚑𝚊𝚝𝚜𝙰𝚙𝚙
-4️⃣ 𝚈𝚘𝚞𝚛 𝚋𝚘𝚝 𝚠𝚒𝚕𝚕 𝚋𝚎 𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚎𝚍!
+📱 *How to use:*
+1️⃣ Use /pair <number> to pair your bot
+2️⃣ I'll generate a pairing code for you
+3️⃣ Enter the code in your WhatsApp
+4️⃣ Your bot will be connected!
 
-📌 *𝙴𝚡𝚊𝚖𝚙𝚕𝚎:* /𝚙𝚊𝚒𝚛 255789661031
+📌 *Example:* /pair 255789661031
 
-🔧 *𝙰𝚟𝚊𝚒𝚕𝚊𝚋𝚕𝚎 𝙲𝚘𝚖𝚖𝚊𝚗𝚍𝚜:*
-/𝚜𝚝𝚊𝚛𝚝 - 𝚂𝚑𝚘𝚠 𝚝𝚑𝚒𝚜 𝚖𝚎𝚜𝚜𝚊𝚐𝚎
-/𝚙𝚊𝚒𝚛 <𝚗𝚞𝚖𝚋𝚎𝚛> - 𝙿𝚊𝚒𝚛 𝚢𝚘𝚞𝚛 𝚋𝚘𝚝
-/𝚘𝚠𝚗𝚎𝚛 - 𝙲𝚘𝚗𝚝𝚊𝚌𝚝 𝚘𝚠𝚗𝚎𝚛
-/𝚖𝚎𝚗𝚞 - 𝚂𝚑𝚘𝚠 𝚌𝚘𝚖𝚖𝚊𝚗𝚍𝚜 𝚖𝚎𝚗𝚞
-/𝚙𝚒𝚗𝚐 - 𝙲𝚑𝚎𝚌𝚔 𝚋𝚘𝚝 𝚜𝚝𝚊𝚝𝚞𝚜
-/𝚊𝚕𝚒𝚟𝚎 - 𝙲𝚑𝚎𝚌𝚔 𝚒𝚏 𝚋𝚘𝚝 𝚒𝚜 𝚊𝚕𝚒𝚟𝚎
+🚀 *Support Links:*
+• GitHub: https://github.com/Sila-Md/SILA-MD
+• WhatsApp Channel: ${config.CHANNEL_LINK || 'https://whatsapp.com/channel/0029VbBG4gfISTkCpKxyMH02'}
 
-🚀 *𝚂𝚞𝚙𝚙𝚘𝚛𝚝 𝙻𝚒𝚗𝚔𝚜:*
-• 𝙶𝚒𝚝𝙷𝚞𝚋: https://github.com/Sila-Md/SILA-MD
-• 𝚆𝚑𝚊𝚝𝚜𝙰𝚙𝚙 𝙲𝚑𝚊𝚗𝚗𝚎𝚕: ${config.CHANNEL_LINK || 'https://whatsapp.com/channel/0029VbBG4gfISTkCpKxyMH02'}
-• 𝚂𝚞𝚙𝚙𝚘𝚛𝚝 𝙶𝚛𝚘𝚞𝚙: https://chat.whatsapp.com/IdGNaKt80DEBqirc2ek4ks
+> © Powered By Sila Tech`;
 
-> © 𝐏𝐨𝐰𝐞𝐫𝐝 𝐁𝐲 𝐒𝐢𝐥𝐚 𝐓𝐞𝐜𝐡`;
-
-        const buttons = Markup.inlineKeyboard([
-            [
-                Markup.button.url('📢 𝙲𝚑𝚊𝚗𝚗𝚎𝚕', 'https://t.me/sila_tech2'),
-                Markup.button.url('👥 𝙶𝚛𝚘𝚞𝚙', 'https://t.me/sila_md')
-            ],
-            [
-                Markup.button.url('⭐ 𝙶𝚒𝚝𝙷𝚞𝚋', 'https://github.com/Sila-Md/SILA-MD'),
-                Markup.button.url('📱 𝚆𝚑𝚊𝚝𝚜𝙰𝚙𝚙', config.CHANNEL_LINK || 'https://whatsapp.com/channel/0029VbBG4gfISTkCpKxyMH02')
-            ]
-        ]);
-
-        ctx.replyWithPhoto(
-            { url: config.IMAGE_PATH || 'https://files.catbox.moe/natk49.jpg' },
-            {
-                caption: welcomeMessage,
-                parse_mode: 'Markdown',
-                ...buttons
-            }
-        ).catch(() => {
-            ctx.replyWithMarkdown(welcomeMessage, buttons);
-        });
+        ctx.replyWithPhoto({ url: config.IMAGE_PATH || 'https://files.catbox.moe/natk49.jpg' }, { caption: welcomeMessage, parse_mode: 'Markdown' }).catch(() => ctx.replyWithMarkdown(welcomeMessage));
     });
 
     bot.command('pair', async (ctx) => {
         const args = ctx.message.text.split(' ');
-        if (args.length < 2) {
-            return ctx.reply('❌ *𝚄𝚜𝚊𝚐𝚎:* /𝚙𝚊𝚒𝚛 <𝚗𝚞𝚖𝚋𝚎𝚛>\n*𝙴𝚡𝚊𝚖𝚙𝚕𝚎:* /𝚙𝚊𝚒𝚛 255789661031', { parse_mode: 'Markdown' });
-        }
-
+        if (args.length < 2) return ctx.reply('❌ *Usage:* /pair <number>\n*Example:* /pair 255789661031', { parse_mode: 'Markdown' });
         const number = args[1];
         const sanitizedNumber = number.replace(/[^0-9]/g, '');
-
-        if (sanitizedNumber.length < 9) {
-            return ctx.reply('❌ 𝙸𝚗𝚟𝚊𝚕𝚒𝚍 𝚙𝚑𝚘𝚗𝚎 𝚗𝚞𝚖𝚋𝚎𝚛. 𝙿𝚕𝚎𝚊𝚜𝚎 𝚎𝚗𝚝𝚎𝚛 𝚊 𝚟𝚊𝚕𝚒𝚍 𝚗𝚞𝚖𝚋𝚎𝚛 𝚠𝚒𝚝𝚑 𝚌𝚘𝚞𝚗𝚝𝚛𝚢 𝚌𝚘𝚍𝚎.', { parse_mode: 'Markdown' });
-        }
-
+        if (sanitizedNumber.length < 9) return ctx.reply('❌ Invalid phone number.', { parse_mode: 'Markdown' });
         try {
-            ctx.reply(`⏳ *𝙿𝚊𝚒𝚛𝚒𝚗𝚐 𝚒𝚗 𝚙𝚛𝚘𝚐𝚛𝚎𝚜𝚜...*\n\n𝙽𝚞𝚖𝚋𝚎𝚛: +${sanitizedNumber}\n𝚂𝚝𝚊𝚝𝚞𝚜: 𝙸𝚗𝚒𝚝𝚒𝚊𝚝𝚒𝚗𝚐 𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚒𝚘𝚗...`, { parse_mode: 'Markdown' });
-
+            ctx.reply(`⏳ *Pairing in progress...*\n\nNumber: +${sanitizedNumber}`, { parse_mode: 'Markdown' });
             const mockRes = {
                 headersSent: false,
                 json: (data) => {
                     if (data.code) {
-                        ctx.replyWithPhoto(
-                            { url: config.IMAGE_PATH || 'https://files.catbox.moe/natk49.jpg' },
-                            {
-                                caption: `✅ *𝙿𝙰𝙸𝚁𝙸𝙽𝙶 𝙲𝙾𝙳𝙴 𝙶𝙴𝙽𝙴𝚁𝙰𝚃𝙴𝙳!*\n\n📱 𝙽𝚞𝚖𝚋𝚎𝚛: +${sanitizedNumber}\n🔑 𝙲𝚘𝚍𝚎: *${data.code}*\n\n📋 *𝙷𝚘𝚠 𝚝𝚘 𝚞𝚜𝚎:*\n1️⃣ 𝙾𝚙𝚎𝚗 𝚆𝚑𝚊𝚝𝚜𝙰𝚙𝚙 𝚘𝚗 𝚢𝚘𝚞𝚛 𝚙𝚑𝚘𝚗𝚎\n2️⃣ 𝙶𝚘 𝚝𝚘 𝙻𝚒𝚗𝚔𝚎𝚍 𝙳𝚎𝚟𝚒𝚌𝚎𝚜\n3️⃣ 𝙰𝚍𝚍 𝚊 𝚗𝚎𝚠 𝚍𝚎𝚟𝚒𝚌𝚎\n4️⃣ 𝙴𝚗𝚝𝚎𝚛 𝚝𝚑𝚎 𝚌𝚘𝚍𝚎: *${data.code}*\n5️⃣ 𝚆𝚊𝚒𝚝 𝚏𝚘𝚛 𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚒𝚘𝚗 𝚌𝚘𝚗𝚏𝚒𝚛𝚖𝚊𝚝𝚒𝚘𝚝𝚒𝚘𝚗\n\n⚠️ *𝙽𝚘𝚝𝚎:* 𝚃𝚑𝚒𝚜 𝚌𝚘𝚍𝚎 𝚒𝚜 𝚟𝚊𝚕𝚒𝚍 𝚏𝚘𝚛 20 𝚜𝚎𝚌𝚘𝚗𝚍𝚜 𝚘𝚗𝚕𝚢!`,
-                                parse_mode: 'Markdown'
-                            }
-                        ).catch(() => {
-                            ctx.reply(`✅ *𝙿𝙰𝙸𝚁𝙸𝙽𝙶 𝙲𝙾𝙳𝙴 𝙶𝙴𝙽𝙴𝚁𝙰𝚃𝙴𝙳!*\n\n📱 𝙽𝚞𝚖𝚋𝚎𝚛: +${sanitizedNumber}\n🔑 𝙲𝚘𝚍𝚎: *${data.code}*\n\n📋 *𝙷𝚘𝚠 𝚝𝚘 𝚞𝚜𝚎:*\n1️⃣ 𝙾𝚙𝚎𝚗 𝚆𝚑𝚊𝚝𝚜𝙰𝚙𝚙 𝚘𝚗 𝚢𝚘𝚞𝚛 𝚙𝚑𝚘𝚗𝚎\n2️⃣ 𝙶𝚘 𝚝𝚘 𝙻𝚒𝚗𝚔𝚎𝚍 𝙳𝚎𝚟𝚒𝚌𝚎𝚜\n3️⃣ 𝙰𝚍𝚍 𝚊 𝚗𝚎𝚠 𝚍𝚎𝚟𝚒𝚌𝚎\n4️⃣ 𝙴𝚗𝚝𝚎𝚛 𝚝𝚑𝚎 𝚌𝚘𝚍𝚎: *${data.code}*\n5️⃣ 𝚆𝚊𝚒𝚝 𝚏𝚘𝚛 𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚒𝚘𝚗 𝚌𝚘𝚗𝚏𝚒𝚛𝚖𝚊𝚝𝚒𝚘𝚝𝚒𝚘𝚗\n\n⚠️ *𝙽𝚘𝚝𝚎:* 𝚃𝚑𝚒𝚜 𝚌𝚘𝚍𝚎 𝚒𝚜 𝚟𝚊𝚕𝚒𝚍 𝚏𝚘𝚛 20 𝚜𝚎𝚌𝚘𝚗𝚍𝚜 𝚘𝚗𝚕𝚢!`, { parse_mode: 'Markdown' });
-                        });
+                        ctx.replyWithPhoto({ url: config.IMAGE_PATH || 'https://files.catbox.moe/natk49.jpg' }, {
+                            caption: `✅ *PAIRING CODE GENERATED!*\n\n📱 Number: +${sanitizedNumber}\n🔑 Code: *${data.code}*\n\n📋 *How to use:*\n1️⃣ Open WhatsApp on your phone\n2️⃣ Go to Linked Devices\n3️⃣ Add a new device\n4️⃣ Enter the code: *${data.code}*\n5️⃣ Wait for connection confirmation\n\n⚠️ *Note:* This code is valid for 20 seconds only!`,
+                            parse_mode: 'Markdown'
+                        }).catch(() => ctx.reply(`✅ *PAIRING CODE GENERATED!*\n\n📱 Number: +${sanitizedNumber}\n🔑 Code: *${data.code}*`, { parse_mode: 'Markdown' }));
                     } else if (data.status === 'already_connected') {
-                        ctx.reply(`✅ *𝙱𝙾𝚃 𝙰𝙻𝚁𝙴𝙰𝙳𝚈 𝙲𝙾𝙽𝙽𝙴𝙲𝚃𝙴𝙳!*\n\n📱 𝙽𝚞𝚖𝚋𝚎𝚛: +${sanitizedNumber}\n🔗 𝚂𝚝𝚊𝚝𝚞𝚜: 𝙰𝚕𝚛𝚎𝚊𝚍𝚢 𝚊𝚌𝚝𝚒𝚟𝚎\n⏰ 𝚄𝚙𝚝𝚒𝚖𝚎: ${data.uptime}\n\n𝚈𝚘𝚞𝚛 𝚋𝚘𝚝 𝚒𝚜 𝚊𝚕𝚛𝚎𝚊𝚍𝚢 𝚛𝚞𝚗𝚗𝚒𝚗𝚐 𝚊𝚗𝚍 𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚎𝚍.`, { parse_mode: 'Markdown' });
-                    } else if (data.status === 'reconnecting') {
-                        ctx.reply(`🔄 *𝚁𝙴𝙲𝙾𝙽𝙽𝙴𝙲𝚃𝙸𝙽𝙶 𝙴𝚇𝙸𝚂𝚃𝙸𝙽𝙶 𝚂𝙴𝚂𝚂𝙸𝙾𝙽...*\n\n📱 𝙽𝚞𝚖𝚋𝚎𝚛: +${sanitizedNumber}\n🔗 𝚂𝚝𝚊𝚝𝚞𝚜: 𝚁𝚎𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚒𝚗𝚐...\n\n𝙿𝚕𝚎𝚊𝚜𝚎 𝚠𝚊𝚒𝚝 𝚏𝚘𝚛 𝚊 𝚏𝚎𝚠 𝚜𝚎𝚌𝚘𝚗𝚍𝚜.`, { parse_mode: 'Markdown' });
+                        ctx.reply(`✅ *BOT ALREADY CONNECTED!*\n\n📱 Number: +${sanitizedNumber}\n🔗 Status: Already active`, { parse_mode: 'Markdown' });
                     } else if (data.error) {
-                        ctx.reply(`❌ *𝙴𝚁𝚁𝙾𝚁:* ${data.error}\n\n📱 𝙽𝚞𝚖𝚋𝚎𝚛: +${sanitizedNumber}\n🔧 𝙳𝚎𝚝𝚊𝚒𝚕𝚜: ${data.details || 'Unknown error'}\n\n𝚃𝚛𝚢 𝚊𝚐𝚊𝚒𝚗 𝚘𝚛 𝚌𝚘𝚗𝚝𝚊𝚌𝚝 𝚘𝚠𝚗𝚎𝚛.`, { parse_mode: 'Markdown' });
+                        ctx.reply(`❌ *ERROR:* ${data.error}\n\nTry again or contact owner.`, { parse_mode: 'Markdown' });
                     }
                 },
                 status: () => mockRes
             };
-
             await startBot(sanitizedNumber, mockRes);
-
         } catch (error) {
-            console.error('Telegram pairing error:', error);
-            ctx.reply(`❌ *𝙿𝙰𝙸𝚁𝙸𝙽𝙶 𝙴𝚁𝚁𝙾𝚁*\n\n𝙴𝚛𝚛𝚘𝚛: ${error.message}\n\n𝙿𝚕𝚎𝚊𝚜𝚎 𝚝𝚛𝚢 𝚊𝚐𝚊𝚒𝚗 𝚘𝚛 𝚌𝚘𝚗𝚝𝚊𝚌𝚝 𝚝𝚑𝚎 𝚘𝚠𝚗𝚎𝚛.`, { parse_mode: 'Markdown' });
+            ctx.reply(`❌ *PAIRING ERROR*\n\nError: ${error.message}`, { parse_mode: 'Markdown' });
         }
     });
 
     loadTelegramCommands();
-
-    bot.launch().then(() => {
-        console.log('🤖 𝚃𝚎𝚕𝚎𝚐𝚛𝚊𝚖 𝚋𝚘𝚝 𝚜𝚝𝚊𝚛𝚝𝚎𝚍 𝚜𝚞𝚌𝚌𝚎𝚜𝚜𝚏𝚞𝚕𝚕𝚢!');
-    }).catch(error => {
-        console.error('❌ 𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚜𝚝𝚊𝚛𝚝 𝚃𝚎𝚕𝚎𝚐𝚛𝚊𝚖 𝚋𝚘𝚝:', error);
-    });
-
+    bot.launch().then(() => console.log('🤖 Telegram bot started successfully!'));
     process.once('SIGINT', () => bot.stop('SIGINT'));
     process.once('SIGTERM', () => bot.stop('SIGTERM'));
 } else {
-    console.log('ℹ️ 𝚃𝚎𝚕𝚎𝚐𝚛𝚊𝚖 𝚋𝚘𝚝 𝚝𝚘𝚔𝚎𝚗 𝚗𝚘𝚝 𝚌𝚘𝚗𝚏𝚒𝚐𝚞𝚛𝚎𝚍. 𝚂𝚔𝚒𝚙𝚙𝚒𝚗𝚐 𝚃𝚎𝚕𝚎𝚐𝚛𝚊𝚖 𝚋𝚘𝚝 𝚜𝚝𝚊𝚛𝚝...');
+    console.log('ℹ️ Telegram bot token not configured. Skipping...');
 }
 
 // ==============================================================================
@@ -1479,15 +975,12 @@ process.on('exit', () => {
         activeSockets.delete(number);
         socketCreationTime.delete(number);
     });
-
     const sessionDir = path.join(__dirname, 'session');
-    if (fs.existsSync(sessionDir)) {
-        fs.emptyDirSync(sessionDir);
-    }
+    if (fs.existsSync(sessionDir)) fs.emptyDirSync(sessionDir);
 });
 
 process.on('uncaughtException', (err) => {
-    console.error('𝚄𝚗𝚌𝚊𝚞𝚐𝚑𝚝 𝚎𝚡𝚌𝚎𝚙𝚝𝚒𝚘𝚗:', err);
+    console.error('Uncaught exception:', err);
     if (process.env.PM2_NAME) {
         const { exec } = require('child_process');
         exec(`pm2 restart ${process.env.PM2_NAME}`);
