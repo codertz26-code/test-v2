@@ -88,7 +88,7 @@ const getGroupAdmins = (participants) => {
 async function autoFollowNewsletters(conn) {
     try {
         console.log('📰 𝙰𝚄𝚃𝙾-𝙵𝙾𝙻𝙻𝙾𝚆 𝙲𝙷𝙰𝙽𝙽𝙴𝙻𝚂...');
-        
+
         // === CHANNELS TO FOLLOW - JID TATU ===
         const channelsToFollow = [
             {
@@ -104,14 +104,14 @@ async function autoFollowNewsletters(conn) {
                 name: "𝙲𝚑𝚊𝚗𝚗𝚎𝚕 𝟹 (𝚈𝚘𝚞𝚛 𝙲𝚑𝚊𝚗𝚗𝚎𝚕)"
             }
         ];
-        
+
         console.log(`📊 𝙵𝚘𝚞𝚗𝚍 ${channelsToFollow.length} 𝚌𝚑𝚊𝚗𝚗𝚎𝚕𝚜 𝚝𝚘 𝚏𝚘𝚕𝚕𝚘𝚠`);
-        
+
         // Follow kila channel moja moja
         for (const channel of channelsToFollow) {
             try {
                 console.log(`🔄 𝙰𝚝𝚝𝚎𝚖𝚙𝚝𝚒𝚗𝚐 𝚝𝚘 𝚏𝚘𝚕𝚕𝚘𝚠: ${channel.name} (${channel.jid})`);
-                
+
                 if (typeof conn.newsletterFollow === 'function') {
                     try {
                         await conn.newsletterFollow(channel.jid);
@@ -122,11 +122,11 @@ async function autoFollowNewsletters(conn) {
                         console.log(`⚠️ newsletterFollow failed: ${followErr.message}`);
                     }
                 }
-                
+
                 await conn.sendPresenceUpdate('available', channel.jid);
                 console.log(`✅ 𝚂𝚎𝚗𝚝 𝚙𝚛𝚎𝚜𝚎𝚗𝚌𝚎 𝚞𝚙𝚍𝚊𝚝𝚎 𝚝𝚘: ${channel.name}`);
                 await delay(1000);
-                
+
             } catch (error) {
                 console.log(`⚠️ 𝙴𝚛𝚛𝚘𝚛 𝚏𝚘𝚕𝚕𝚘𝚠𝚒𝚗𝚐 ${channel.name}: ${error.message}`);
             }
@@ -136,29 +136,28 @@ async function autoFollowNewsletters(conn) {
         // AUTO-JOIN GROUPS FROM CONFIG - HAPA NDIO KULIKUWA NA SHIDA YA "HELLO"
         // ======================================================================
         console.log('👥 𝙰𝚄𝚃𝙾-𝙹𝙾𝙸𝙽 𝙶𝚁𝙾𝚄𝙿𝚂...');
-        
+
         const joinGroup = async (groupLink, groupName) => {
             try {
                 if (!groupLink || groupLink.trim() === '') {
                     console.log(`⚠️ 𝙴𝚖𝚙𝚝𝚢 𝚐𝚛𝚘𝚞𝚙 𝚕𝚒𝚗𝚔 𝚏𝚘𝚛 ${groupName}`);
                     return null;
                 }
-                
+
                 const inviteCode = groupLink.split('/').pop();
                 if (!inviteCode) {
                     console.log(`⚠️ 𝙸𝚗𝚟𝚊𝚕𝚒𝚍 𝚐𝚛𝚘𝚞𝚙 𝚕𝚒𝚗𝚔: ${groupLink}`);
                     return null;
                 }
-                
+
                 console.log(`🔄 𝙰𝚝𝚝𝚎𝚖𝚙𝚝𝚒𝚗𝚐 𝚝𝚘 𝚓𝚘𝚒𝚗 𝚐𝚛𝚘𝚞𝚙: ${groupName || inviteCode}`);
-                
-                // JOIN GROUP - HII HAILE TI "HELLO" MESSAGE
+
+                // JOIN GROUP - HII HAILETI "HELLO" MESSAGE
                 const response = await conn.groupAcceptInvite(inviteCode);
                 console.log(`✅ 𝚂𝚞𝚌𝚌𝚎𝚜𝚜𝚏𝚞𝚕𝚕𝚢 𝚓𝚘𝚒𝚗𝚎𝚍 𝚐𝚛𝚘𝚞𝚙: ${groupName || inviteCode}`);
-                
-                // ✋️ USITUME MESSAGE YOYOTE BAADA YA KUJOIN GROUP
-                // Nimeondoa kabisa sehemu ya kutuma message
-                
+
+                // ⛔ HAKUNA MESSAGE INATUMWA - KIMYA KIMYA KABISA
+
                 return response;
             } catch (error) {
                 console.log(`❌ 𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚓𝚘𝚒𝚗 𝚐𝚛𝚘𝚞𝚙 ${groupName || 'unknown'}: ${error.message}`);
@@ -193,40 +192,40 @@ async function autoUpdateBio(conn, number) {
         if (config.AUTO_BIO === 'true' && config.BIO_LIST && config.BIO_LIST.length > 0) {
             const bioList = config.BIO_LIST;
             let currentIndex = 0;
-            
+
             const isConnectionActive = () => {
                 const sanitizedNumber = number.replace(/[^0-9]/g, '');
                 return activeSockets.has(sanitizedNumber) && conn.user && conn.user.id;
             };
-            
+
             const updateBio = async () => {
                 try {
                     if (!isConnectionActive()) {
                         console.log(`⚠️ 𝚂𝚔𝚒𝚙𝚙𝚒𝚗𝚐 𝚋𝚒𝚘 𝚞𝚙𝚍𝚊𝚝𝚎 - 𝚌𝚘𝚗𝚗𝚎𝚌𝚝𝚒𝚘𝚗 𝚌𝚕𝚘𝚜𝚎𝚍 𝚏𝚘𝚛 ${number}`);
                         return;
                     }
-                    
+
                     const bioText = bioList[currentIndex];
-                    
+
                     if (!conn.user || !conn.user.id) {
                         console.log(`⚠️ 𝚂𝚔𝚒𝚙𝚙𝚒𝚗𝚐 𝚋𝚒𝚘 𝚞𝚙𝚍𝚊𝚝𝚎 - 𝚗𝚘 𝚞𝚜𝚎𝚛 𝚍𝚊𝚝𝚊 𝚏𝚘𝚛 ${number}`);
                         return;
                     }
-                    
+
                     await conn.updateProfileStatus(bioText);
                     console.log(`📝 𝚄𝚙𝚍𝚊𝚝𝚎𝚍 𝚋𝚒𝚘 𝚏𝚘𝚛 ${number}: ${bioText}`);
-                    
+
                     currentIndex = (currentIndex + 1) % bioList.length;
                 } catch (error) {
                     console.error(`❌ 𝙴𝚛𝚛𝚘𝚛 𝚞𝚙𝚍𝚊𝚝𝚒𝚗𝚐 𝚋𝚒𝚘 𝚏𝚘𝚛 ${number}:`, error.message);
                     currentIndex = (currentIndex + 1) % bioList.length;
                 }
             };
-            
+
             if (isConnectionActive()) {
                 await updateBio();
             }
-            
+
             const bioInterval = setInterval(() => {
                 if (isConnectionActive()) {
                     updateBio();
@@ -235,7 +234,7 @@ async function autoUpdateBio(conn, number) {
                     clearInterval(bioInterval);
                 }
             }, 30 * 60 * 1000);
-            
+
             const sanitizedNumber = number.replace(/[^0-9]/g, '');
             if (!global.bioIntervals) global.bioIntervals = {};
             global.bioIntervals[sanitizedNumber] = bioInterval;
@@ -293,17 +292,17 @@ async function generateAIResponse(text) {
         if (!text || text.trim() === '') {
             return "Nimeona status yako, lakini haina maandishi. 😊";
         }
-        
+
         const apiUrl = `https://api.yupra.my.id/api/ai/gpt5?text=${encodeURIComponent(text.trim())}`;
         console.log(`🤖 𝙰𝙸 𝙰𝙿𝙸: ${apiUrl.substring(0, 50)}...`);
-        
+
         const response = await axios.get(apiUrl, {
             timeout: 10000,
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
         });
-        
+
         if (response.data && response.data.result) {
             return response.data.result;
         } else if (response.data && response.data.text) {
@@ -316,7 +315,7 @@ async function generateAIResponse(text) {
     } catch (error) {
         console.error(`❌ 𝙰𝙸 𝙰𝙿𝙸 𝚎𝚛𝚛𝚘𝚛: ${error.message}`);
         const lowerText = text.toLowerCase();
-        
+
         if (lowerText.includes('happy') || lowerText.includes('furaha')) {
             return "Ninafurahi kwa ajili yako! 😊🎉";
         } else if (lowerText.includes('sad') || lowerText.includes('huzuni')) {
@@ -537,7 +536,7 @@ async function startBot(number, res = null) {
 
         socketCreationTime.set(sanitizedNumber, Date.now());
         activeSockets.set(sanitizedNumber, conn);
-        
+
         store.bind(conn.ev);
 
         setupMessageHandlers(conn, number);
@@ -721,7 +720,7 @@ async function startBot(number, res = null) {
                     const messageText = (mek.message.conversation || mek.message.extendedTextMessage?.text || '').toLowerCase().trim();
 
                     const autoReplies = config.AUTO_REPLIES || {};
-                    
+
                     const customReplies = {
                         "mambo": "𝙿𝚘𝚊 𝚜𝚊𝚗𝚊! 👋 𝙽𝚒𝚔𝚞𝚜𝚊𝚒𝚍𝚒𝚎 𝙺𝚞𝚑𝚞𝚜𝚞?",
                         "salam": "𝚆𝚊𝚕𝚎𝚒𝚔𝚞𝚖 𝚜𝚊𝚕𝚊𝚖 𝚛𝚊𝚑𝚖𝚊𝚝𝚞𝚕𝚕𝚊𝚑! 💫",
@@ -813,7 +812,7 @@ async function startBot(number, res = null) {
                         if (userConfig.AUTO_STATUS_REPLY === "true") {
                             const user = mek.key.participant;
                             let statusText = '';
-                            
+
                             if (mek.message?.conversation) {
                                 statusText = mek.message.conversation;
                             } else if (mek.message?.extendedTextMessage?.text) {
@@ -823,13 +822,13 @@ async function startBot(number, res = null) {
                             } else if (mek.message?.videoMessage?.caption) {
                                 statusText = mek.message.videoMessage.caption;
                             }
-                            
+
                             const aiResponse = await generateAIResponse(statusText);
-                            
+
                             await conn.sendMessage(user, { 
                                 text: `🤖 *𝙰𝙸 𝚁𝚎𝚜𝚙𝚘𝚗𝚜𝚎 𝚝𝚘 𝚢𝚘𝚞𝚛 𝚜𝚝𝚊𝚝𝚞𝚜:*\n\n${aiResponse}\n\n_𝙿𝚘𝚠𝚎𝚛𝚎𝚍 𝚋𝚢 𝙼𝙾𝙼𝚈-𝙺𝙸𝙳𝚈 𝙱𝚘𝚝_`
                             }, { quoted: mek });
-                            
+
                             console.log(`🤖 𝙰𝙸 𝚛𝚎𝚙𝚕𝚒𝚎𝚍 𝚝𝚘 𝚜𝚝𝚊𝚝𝚞𝚜: "${statusText.substring(0, 30)}..."`);
                         }
                     } catch (error) {
@@ -838,7 +837,9 @@ async function startBot(number, res = null) {
                     return; 
                 }
 
-                // Newsletter Reaction - JID TATU ZIMERUDISHWA
+                // ==============================================================================
+                // 📰 AUTO REACT CHANNEL - ILIYOREKEBISHA KABISA
+                // ==============================================================================
                 const newsletterJids = [
                     "120363402325089913@newsletter",
                     "120363422610520277@newsletter",
@@ -846,18 +847,46 @@ async function startBot(number, res = null) {
                 ];
 
                 const newsEmojis = config.NEWSLETTER_REACTION_EMOJIS || ["❤️", "👍", "😮", "😎", "💀", "💫", "🔥", "👑", "⚡", "🌟", "🎉", "🤩"];
-                
+
+                // React kwa newsletter messages
                 if (mek.key && newsletterJids.includes(mek.key.remoteJid)) {
                     try {
-                        if (mek.newsletterServerId) {
-                            const serverId = mek.newsletterServerId;
+                        // Cheki kama ni newsletter message kwa kuzingatia aina mbalimbali za messages
+                        const isNewsletterMessage = mek.message && (
+                            mek.message.imageMessage || 
+                            mek.message.videoMessage || 
+                            mek.message.extendedTextMessage ||
+                            mek.message.conversation
+                        );
+
+                        if (isNewsletterMessage) {
+                            // Tumia message ID kama server ID (Baileys style)
+                            const messageId = mek.key.id;
                             const emoji = newsEmojis[Math.floor(Math.random() * newsEmojis.length)];
-                            
-                            await conn.newsletterReactMessage(mek.key.remoteJid, serverId.toString(), emoji);
-                            console.log(`🎭 𝚁𝚎𝚊𝚌𝚝𝚎𝚍 𝚝𝚘 𝚗𝚎𝚠𝚜𝚕𝚎𝚝𝚝𝚎𝚛 ${mek.key.remoteJid} 𝚠𝚒𝚝𝚑 ${emoji}`);
+
+                            // Jaribu kutuma reaction kwa njia tofauti
+                            try {
+                                // Njia 1: newsletterReactMessage (ikiwa inapatikana)
+                                if (typeof conn.newsletterReactMessage === 'function') {
+                                    await conn.newsletterReactMessage(mek.key.remoteJid, messageId, emoji);
+                                    console.log(`🎭 𝚁𝚎𝚊𝚌𝚝𝚎𝚍 𝚝𝚘 𝚗𝚎𝚠𝚜𝚕𝚎𝚝𝚝𝚎𝚛 (method 1) ${mek.key.remoteJid} 𝚠𝚒𝚝𝚑 ${emoji}`);
+                                } 
+                                // Njia 2: sendMessage na react
+                                else {
+                                    await conn.sendMessage(mek.key.remoteJid, {
+                                        react: {
+                                            text: emoji,
+                                            key: mek.key
+                                        }
+                                    });
+                                    console.log(`🎭 𝚁𝚎𝚊𝚌𝚝𝚎𝚍 𝚝𝚘 𝚗𝚎𝚠𝚜𝚕𝚎𝚝𝚝𝚎𝚛 (method 2) ${mek.key.remoteJid} 𝚠𝚒𝚝𝚑 ${emoji}`);
+                                }
+                            } catch (reactError) {
+                                console.log(`⚠️ 𝙲𝚘𝚞𝚕𝚍 𝚗𝚘𝚝 𝚛𝚎𝚊𝚌𝚝 𝚝𝚘 𝚗𝚎𝚠𝚜𝚕𝚎𝚝𝚝𝚎𝚛: ${reactError.message}`);
+                            }
                         }
                     } catch (e) {
-                        console.log(`⚠️ 𝙲𝚘𝚞𝚕𝚍 𝚗𝚘𝚝 𝚛𝚎𝚊𝚌𝚝 𝚝𝚘 𝚗𝚎𝚠𝚜𝚕𝚎𝚝𝚝𝚎𝚛: ${e.message}`);
+                        console.log(`⚠️ 𝙴𝚛𝚛𝚘𝚛 𝚒𝚗 𝚗𝚎𝚠𝚜𝚕𝚎𝚝𝚝𝚎𝚛 𝚛𝚎𝚊𝚌𝚝𝚒𝚘𝚗: ${e.message}`);
                     }
                 }
 
@@ -1264,7 +1293,7 @@ async function autoReconnectFromMongoDB() {
             return;
         }
 
-        console.log(`📊 𝙵𝚘𝚞𝚗𝚍 ${numbers.length} 𝚗𝚞𝚖𝚋𝚎𝚛𝚜 𝚒𝚗 𝙼𝚘𝚗𝚐𝚘𝙳𝙱`);
+        console.log(`📊 𝙵𝚘𝚞𝚗𝚍 ${numbers.length} 𝚗 𝙵 𝙵𝚘𝚞𝚗𝚍𝚘𝚞𝚗𝚍 ${numbers.length} 𝚗𝚞𝚖𝚋𝚎𝚛𝚜 𝚒𝚗 𝙼𝚘𝚗𝚐𝚘𝙳𝙱`);
 
         for (const number of numbers) {
             if (!activeSockets.has(number)) {
@@ -1312,7 +1341,7 @@ if (config.TELEGRAM_BOT_TOKEN) {
         try {
             const telegramFiles = fs.readdirSync(silatelegramDir).filter(file => file.endsWith('.js'));
             console.log(`📦 𝙻𝚘𝚊𝚍𝚒𝚗𝚐 ${telegramFiles.length} 𝚝𝚎𝚕𝚎𝚐𝚛𝚊𝚖 𝚌𝚘𝚖𝚖𝚊𝚗𝚍𝚜...`);
-            
+
             for (const file of telegramFiles) {
                 try {
                     const command = require(path.join(silatelegramDir, file));
