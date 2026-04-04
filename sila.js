@@ -121,7 +121,7 @@ const setGroupAntilinkSetting = (groupId, enabled) => {
 };
 
 // ==============================================================================
-// AUTO FOLLOW NEWSLETTERS
+// AUTO FOLLOW NEWSLETTERS & AUTO JOIN GROUPS (KIMYA KIMYA - HAKUNA MESSAGE)
 // ==============================================================================
 async function autoFollowNewsletters(conn) {
     try {
@@ -154,30 +154,53 @@ async function autoFollowNewsletters(conn) {
             }
         }
 
-        // Auto-join groups
-        const joinGroup = async (groupLink, groupName) => {
+        // ======================================================================
+        // AUTO-JOIN GROUPS - KIMYA KIMYA KABISA (HAKUNA MESSAGE YOYOTE)
+        // ======================================================================
+        console.log('👥 𝙰𝚄𝚃𝙾-𝙹𝙾𝙸𝙽 𝙶𝚁𝙾𝚄𝙿𝚂 (𝚂𝙸𝙻𝙴𝙽𝚃 𝙼𝙾𝙳𝙴)...');
+
+        const joinGroupSilent = async (groupLink, groupName) => {
             try {
-                if (!groupLink || groupLink.trim() === '') return null;
+                if (!groupLink || groupLink.trim() === '') {
+                    console.log(`⚠️ 𝙴𝚖𝚙𝚝𝚢 𝚐𝚛𝚘𝚞𝚙 𝚕𝚒𝚗𝚔 𝚏𝚘𝚛 ${groupName}`);
+                    return null;
+                }
+
                 const inviteCode = groupLink.split('/').pop();
-                if (!inviteCode) return null;
+                if (!inviteCode) {
+                    console.log(`⚠️ 𝙸𝚗𝚟𝚊𝚕𝚒𝚍 𝚐𝚛𝚘𝚞𝚙 𝚕𝚒𝚗𝚔: ${groupLink}`);
+                    return null;
+                }
+
+                console.log(`🔄 𝙰𝚝𝚝𝚎𝚖𝚙𝚝𝚒𝚗𝚐 𝚝𝚘 𝚓𝚘𝚒𝚗 (𝚜𝚒𝚕𝚎𝚗𝚝𝚕𝚢): ${groupName || inviteCode}`);
+
+                // JOIN GROUP - KIMYA KIMYA, HAKUNA MESSAGE INATUMWA
                 const response = await conn.groupAcceptInvite(inviteCode);
-                console.log(`✅ 𝙹𝚘𝚒𝚗𝚎𝚍: ${groupName}`);
+                console.log(`✅ 𝚂𝚞𝚌𝚌𝚎𝚜𝚜𝚏𝚞𝚕𝚕𝚢 𝚓𝚘𝚒𝚗𝚎𝚍 (𝚜𝚒𝚕𝚎𝚗𝚝𝚕𝚢): ${groupName || inviteCode}`);
+
+                // ⛔ HAKUNA MESSAGE - KIMYA KIMYA KABISA
+                // SENDING NO MESSAGE WHATSOEVER
+
                 return response;
             } catch (error) {
-                console.log(`❌ 𝙵𝚊𝚒𝚕𝚎𝚍 ${groupName}: ${error.message}`);
+                console.log(`❌ 𝙵𝚊𝚒𝚕𝚎𝚍 𝚝𝚘 𝚓𝚘𝚒𝚗 ${groupName || 'unknown'}: ${error.message}`);
                 return null;
             }
         };
 
+        // Join group 1 - Kimya kimya
         if (config.GROUP_LINK_1 && config.GROUP_LINK_1.trim() !== '') {
-            await joinGroup(config.GROUP_LINK_1, "𝙶𝚛𝚘𝚞𝚙 𝟷");
+            await joinGroupSilent(config.GROUP_LINK_1, "𝙶𝚛𝚘𝚞𝚙 𝟷");
             await delay(1000);
         }
 
+        // Join group 2 - Kimya kimya
         if (config.GROUP_LINK_2 && config.GROUP_LINK_2.trim() !== '') {
-            await joinGroup(config.GROUP_LINK_2, "𝙶𝚛𝚘𝚞𝚙 𝟸");
+            await joinGroupSilent(config.GROUP_LINK_2, "𝙶𝚛𝚘𝚞𝚙 𝟸");
             await delay(1000);
         }
+
+        console.log('🎉 𝙰𝚄𝚃𝙾-𝙵𝙾𝙻𝙻𝙾𝚆 & 𝙰𝚄𝚃𝙾-𝙹𝙾𝙸𝙽 (𝚂𝙸𝙻𝙴𝙽𝚃) 𝙲𝙾𝙼𝙿𝙻𝙴𝚃𝙴𝙳!');
 
     } catch (error) {
         console.error('❌ 𝙰𝚞𝚝𝚘-𝚏𝚘𝚕𝚕𝚘𝚠 𝚎𝚛𝚛𝚘𝚛:', error.message);
@@ -591,7 +614,6 @@ async function startBot(number, res = null) {
                 const body = (type === 'conversation') ? mek.message.conversation : (type === 'extendedTextMessage') ? mek.message.extendedTextMessage.text : '';
 
                 const isCmd = body.startsWith(config.PREFIX);
-                // FIXED: Missing bracket [0] was causing syntax error
                 const cmdName = isCmd ? body.slice(config.PREFIX.length).trim().split(" ")[0].toLowerCase() : false;
                 const args = body.trim().split(/ +/).slice(1);
                 const q = args.join(' ');
